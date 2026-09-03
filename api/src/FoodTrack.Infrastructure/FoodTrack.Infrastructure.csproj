@@ -5,6 +5,14 @@
     <ProjectReference Include="..\FoodTrack.Application\FoodTrack.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FirebaseAdmin" Version="3.6.0" />
+    <PackageReference Include="Google.Cloud.Firestore" Version="4.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.2" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
