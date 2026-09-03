@@ -1,0 +1,1588 @@
+# Food Track — Implementation Document
+
+## 1. Overview
+
+Personal, mobile-first application for tracking diet, calorie/macronutrient/water intake, and weight progress.
+
+Main goals:
+
+- Log meals daily.
+- Log foods and quantities consumed.
+- Calculate calories, protein, carbohydrates, and fat.
+- Log water intake throughout the day.
+- Set a daily calorie target based on a desired deficit.
+- Track weight over time, without requiring a daily entry.
+- Display charts for weight, calorie intake, macronutrient intake (protein, carbs, fat), and water intake.
+- Let the user view any of these metrics individually, or combine two or more of them on the same chart (e.g. calories alone, protein alone, or calories + protein + water together).
+- Support views by day, week, month, and longer periods.
+- Start as a personal application, but keep the domain ready for future multi-user usage.
+
+The application must remain simple in the MVP. The intent is not to build a professional nutrition system from the start.
+
+---
+
+# 2. Architecture
+
+## Stack
+
+### Frontend
+- React Native
+- TypeScript
+- Expo
+
+### Backend
+- .NET / C#
+- REST API
+
+### Infrastructure
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Admin SDK on the backend
+
+### Nutritional data
+- Reliable external food API/database
+- Local cache of foods in Firestore
+
+## Flow
+
+```text
+┌─────────────────────────┐
+│   React Native + Expo   │
+│       TypeScript        │
+└────────────┬────────────┘
+             │ HTTPS / JSON
+             ▼
+┌─────────────────────────┐
+│        .NET API         │
+│                         │
+│ Auth / Authorization    │
+│ Meals                   │
+│ Foods                   │
+│ Weight                  │
+│ Water                   │
+│ Dashboard               │
+│ Nutrition calculations  │
+└────────────┬────────────┘
+             │
+             │ Firebase Admin SDK
+             ▼
+┌─────────────────────────┐
+│       Firestore         │
+│                         │
+│ Users                   │
+│ Meals                   │
+│ MealItems               │
+│ WeightEntries           │
+│ WaterEntries            │
+│ Foods                   │
+│ FoodServings            │
+└─────────────────────────┘
+             ▲
+             │
+             │ HTTPS
+             ▼
+┌─────────────────────────┐
+│ External Food API / DB  │
+└─────────────────────────┘
+```
+
+## Main architectural rule
+
+The frontend will NOT access Firestore directly.
+
+The frontend only talks to the .NET API.
+
+The .NET API is responsible for:
+
+- authentication/authorization;
+- user identification;
+- Firestore access;
+- external nutrition API access;
+- business rules;
+- nutritional calculations;
+- aggregated dashboard data.
+
+This avoids exposing secrets/credentials and keeps the application domain on the backend.
+
+---
+
+# 3. Why Expo?
+
+Expo is a platform/toolset that simplifies React Native application development.
+
+The idea is to keep working with React + TypeScript, while reducing the need to deal directly with the full native complexity of Android/iOS.
+
+It also makes future features easier, such as:
+
+- camera;
+- notifications;
+- local storage;
+- native features;
+- Android/iOS builds;
+- offline support.
+
+Choice:
+
+```text
+React Native
++
+Expo
++
+TypeScript
+```
+
+---
+
+# 4. Authentication
+
+The first version may be used only by the owner, but the model must be ready for multiple users.
+
+Chosen technology:
+
+- Firebase Authentication.
+
+The API must validate the authenticated user's identity before accessing data belonging to them.
+
+## Critical rule
+
+Never trust a `userId` sent by the frontend.
+
+Example:
+
+```http
+POST /meals
+Authorization: Bearer <token>
+```
+
+The API validates the token and obtains:
+
+```text
+authenticatedUserId = 019...
+```
+
+Then creates:
+
+```text
+Meal.UserId = authenticatedUserId
+```
+
+Even if the frontend sends a different `userId`, the API must not allow that value to change the entity's owner.
+
+---
+
+# 5. Identifiers
+
+Users and entities must have independent IDs.
+
+Conceptually:
+
+```text
+User
+id = user identifier
+
+Meal
+id = meal identifier
+userId = owner
+```
+
+Therefore:
+
+- `userId` identifies the user.
+- `mealId` identifies the meal.
+- `mealId` must not be used to infer the user.
+
+GUID/UUID is a suitable option. The exact format can be defined during implementation.
+
+---
+
+# 6. Conceptual model
+
+Main entities:
+
+```text
+User
+Meal
+MealItem
+WeightEntry
+WaterEntry
+Food
+FoodServing
+```
+
+Relationships:
+
+```text
+User
+ ├── Meals
+ │    └── MealItems
+ │           └── Food
+ │
+ ├── WeightEntries
+ │
+ └── WaterEntries
+
+Food
+ └── FoodServings
+```
+
+The dashboard is not a persisted entity.
+
+---
+
+# 7. User
+
+Represents the user's profile and settings.
+
+Conceptual fields:
+
+```text
+User
+--------------------------
+id
+name
+age
+height
+sex
+activityLevel
+targetWeight
+desiredCalorieDeficit
+dailyCalorieTarget
+```
+
+Example:
+
+```json
+{
+  "id": "019...",
+  "name": "Victor",
+  "age": 27,
+  "height": 175,
+  "sex": "...",
+  "activityLevel": "moderate",
+  "targetWeight": 80,
+  "desiredCalorieDeficit": 500,
+  "dailyCalorieTarget": 2000
+}
+```
+
+A configurable daily water target (e.g. `dailyWaterTarget`) is not required for the MVP — water is logged and displayed as a running daily total. It is a candidate future field (Section 36), following the same pattern as `dailyCalorieTarget`.
+
+## Current weight
+
+The current weight does not need to be the primary source on `User`.
+
+History lives in `WeightEntries`.
+
+Current weight can be obtained from the most recent entry.
+
+This avoids unnecessary duplication.
+
+---
+
+# 8. WeightEntry
+
+Represents a historical weight record.
+
+Conceptual fields:
+
+```text
+WeightEntry
+--------------------------
+id
+userId
+date
+weight
+```
+
+Example:
+
+```text
+09/03 → 87.6 kg
+09/04 → 87.4 kg
+09/05 → 87.8 kg
+09/06 → no entry
+09/07 → 87.2 kg
+```
+
+The user does not need to log weight every day.
+
+## Important
+
+Do not create entities such as:
+
+```text
+WeightProgression
+DailyProgress
+MonthlyProgress
+```
+
+Progression is derived from historical records.
+
+---
+
+# 9. WaterEntry
+
+Represents water intake logged during the day.
+
+Unlike `WeightEntry` (a single point-in-time measurement), water intake is naturally logged as several small entries throughout the day — similar in spirit to meals — and summed into a daily total.
+
+Conceptual fields:
+
+```text
+WaterEntry
+--------------------------
+id
+userId
+date
+amount
+unit
+```
+
+Example:
+
+```text
+09/03
+08:00 → 250 ml
+11:30 → 300 ml
+14:00 → 500 ml
+19:00 → 250 ml
+
+Total: 1300 ml
+```
+
+Water reuses the same volume units and servings described in Sections 14 and 16 (`ml`, `L`, or specific servings such as glass, cup, or bottle), so the user can log it however feels most natural.
+
+## Important
+
+Do not persist an entity such as:
+
+```text
+DailyWaterTotal
+```
+
+As with weight, calories, and macronutrients, the daily water total is derived by summing the day's `WaterEntry` records, not stored on its own.
+
+---
+
+# 10. Meal
+
+Represents a meal that took place.
+
+Conceptual fields:
+
+```text
+Meal
+--------------------------
+id
+userId
+date
+mealType
+totalCalories
+totalProtein
+totalCarbs
+totalFat
+```
+
+Possible types:
+
+```text
+breakfast
+lunch
+dinner
+snack
+```
+
+Totals can be calculated from `MealItems`.
+
+It may be useful to persist the totals to make dashboard queries easier, as long as the API keeps them consistent when items change.
+
+---
+
+# 11. MealItem
+
+Represents a food consumed within a meal.
+
+Conceptual fields:
+
+```text
+MealItem
+--------------------------
+id
+mealId
+foodId
+quantity
+unit
+calories
+protein
+carbs
+fat
+```
+
+Example:
+
+```json
+{
+  "foodId": "chicken-breast",
+  "quantity": 150,
+  "unit": "g",
+  "calories": 248,
+  "protein": 46,
+  "carbs": 0,
+  "fat": 5
+}
+```
+
+---
+
+# 12. Nutritional snapshot
+
+The `MealItem` must store the nutritional values used at the moment of consumption, in addition to the reference to `Food`.
+
+Example:
+
+Today:
+
+```text
+Chicken breast
+165 kcal / 100g
+```
+
+User logs:
+
+```text
+200g
+```
+
+The system calculates:
+
+```text
+330 kcal
+```
+
+The `MealItem` saves the result.
+
+If the `Food` is later corrected to:
+
+```text
+150 kcal / 100g
+```
+
+the old meal still represents the values used at the time.
+
+Therefore:
+
+```text
+Food
+```
+
+represents the current nutritional information.
+
+```text
+MealItem
+```
+
+stores a snapshot of the values used at the time of logging.
+
+---
+
+# 13. Food
+
+Represents a food available in the local database.
+
+The local database acts as a cache of the external API.
+
+Conceptual fields:
+
+```text
+Food
+--------------------------
+id
+name
+source
+externalId
+baseUnit
+caloriesPerBaseUnit
+proteinPerBaseUnit
+carbsPerBaseUnit
+fatPerBaseUnit
+```
+
+Example:
+
+```text
+Chicken breast
+
+Base unit:
+100g
+
+Calories:
+165
+
+Protein:
+31g
+
+Carbs:
+0g
+
+Fat:
+3.6g
+```
+
+---
+
+# 14. Nutritional data source
+
+Do not manually register every food.
+
+Use a reliable external nutritional source.
+
+One option discussed is USDA FoodData Central.
+
+The integration must be done by the backend.
+
+## Flow
+
+```text
+User searches:
+"Chicken breast"
+
+        ↓
+
+.NET API
+
+        ↓
+
+Firestore
+
+        ├── found
+        │      ↓
+        │   returns Food
+        │
+        └── not found
+               ↓
+        External Food API
+               ↓
+        saves Food to Firestore
+               ↓
+        returns Food
+```
+
+After the first lookup, the food becomes available locally.
+
+It will also be possible to create custom foods in the future, such as:
+
+```text
+My whey
+My yogurt
+Brand X rice
+```
+
+---
+
+# 15. Units of measurement
+
+Do not use grams as the only universal unit.
+
+Conceptually separate:
+
+## Mass
+
+```text
+g
+kg
+```
+
+## Volume
+
+```text
+ml
+L
+```
+
+## Count
+
+```text
+unit
+```
+
+## Specific servings
+
+```text
+can
+glass
+cup
+container
+bottle
+tablespoon
+teaspoon
+etc.
+```
+
+The user can log the food (or water) in whatever unit feels most natural, while the backend converts it to the base nutritional unit.
+
+---
+
+# 16. Base nutritional unit
+
+Each `Food` has a base unit used in calculations.
+
+Examples:
+
+```text
+Rice
+130 kcal / 100g
+
+Yogurt
+61 kcal / 100g
+
+Coca-Cola
+42 kcal / 100ml
+```
+
+The calculation uses the base unit.
+
+---
+
+# 17. FoodServing
+
+To represent servings such as a can, glass, cup, or container, use a conceptual `FoodServing` structure.
+
+Fields:
+
+```text
+FoodServing
+--------------------------
+id
+foodId
+name
+quantity
+unit
+```
+
+Example:
+
+```text
+Coca-Cola
+
+Base:
+100 ml
+
+Servings:
+1 can = 350 ml
+1 glass = 250 ml
+1 bottle = 600 ml
+```
+
+If the user logs:
+
+```text
+1 can
+```
+
+the system converts:
+
+```text
+1 can
+↓
+350 ml
+↓
+147 kcal
+```
+
+based on 42 kcal/100 ml.
+
+Another example:
+
+```text
+Yogurt
+
+Base:
+100g
+
+Servings:
+1 container = 170g
+1 cup = 245g
+1 tablespoon = 15g
+```
+
+Water logging can reuse this same concept for common servings (e.g. 1 glass = 250 ml, 1 bottle = 500 ml) without needing a `Food`/`FoodServing` record, since water has no nutritional value to calculate — only a volume to sum.
+
+---
+
+# 18. Conversion rule
+
+Do not assume a universal conversion between mass and volume.
+
+Example:
+
+```text
+100 ml of water ≈ 100g
+```
+
+But:
+
+```text
+100 ml of oil ≠ 100g
+100 ml of flour ≠ 100g
+```
+
+Mass ↔ volume conversion depends on the food's density.
+
+Therefore:
+
+- g/kg are units of mass;
+- ml/L are units of volume;
+- can/glass/cup/container etc. are food-specific servings;
+- special conversions must be defined per food/serving.
+
+---
+
+# 19. Nutritional calculation
+
+Example:
+
+Food:
+
+```text
+Rice
+130 kcal / 100g
+```
+
+User:
+
+```text
+200g
+```
+
+Calculation:
+
+```text
+200 / 100 * 130 = 260 kcal
+```
+
+The same principle applies to:
+
+- protein;
+- carbohydrates;
+- fat.
+
+For a serving:
+
+```text
+1 can
+↓
+350 ml
+↓
+value per 100 ml
+↓
+final calories
+```
+
+The API must perform these calculations.
+
+Water intake does not go through this calculation — it has no nutritional value, only a logged volume that is summed per day.
+
+---
+
+# 20. Daily targets
+
+The user can set a desired calorie deficit.
+
+Example:
+
+```text
+Estimated TDEE:      2500 kcal
+Desired deficit:      500 kcal
+Daily target:        2000 kcal
+```
+
+In the future the system may automatically calculate TDEE using:
+
+```text
+age
+height
+weight
+sex
+activity level
+```
+
+The specific formula can be defined during implementation.
+
+For the MVP, a configurable daily calorie target is enough. Water does not need a target for the MVP — it is tracked as a running daily total (Section 9); a configurable daily water target is a candidate future feature (Section 36), following the same pattern as macronutrient targets.
+
+---
+
+# 21. Dashboard
+
+The dashboard will not be a persisted table/collection.
+
+It is a view computed from existing data.
+
+Sources:
+
+```text
+User
++
+Meals
++
+MealItems
++
+WeightEntries
++
+WaterEntries
+```
+
+The dashboard aggregates, per day, calories, macronutrients (protein, carbs, fat), and water intake — not calories alone.
+
+Example:
+
+```text
+Date       Weight    Calories   Protein   Carbs   Fat    Water
+-------------------------------------------------------------------
+09/01      88.1      1920       140g      190g    55g    1800ml
+09/02      87.9      2150       155g      210g    62g    2100ml
+09/03      87.6      1720       130g      160g    48g    1500ml
+09/04      —         1850       135g      175g    50g    2000ml
+09/05      87.4      1970       145g      195g    58g    1750ml
+```
+
+This data feeds the charts.
+
+---
+
+# 22. Metrics and charts overview
+
+Food Track tracks six chartable metrics over time:
+
+```text
+Weight
+Calories
+Protein
+Carbs
+Fat
+Water
+```
+
+Each metric can be viewed:
+
+- individually, as its own chart (Sections 23–26);
+- combined with any other subset of metrics on a single chart (Section 27) — e.g. only calories, only protein, or calories + protein + water together.
+
+All metrics share the same period filters (7 days, 30 days, 3 months, 6 months, 1 year, and in the future a custom period), so switching between an individual chart and a combined view keeps the same time range selected.
+
+Because these metrics use different units and scales (kcal, grams, ml, kg), overlaying them raw on a single axis can be misleading. The exact rendering approach — separate axes, a normalized/percentage-of-target view, or several small charts stacked together — is a frontend/UX decision to make during implementation, not a backend concern. The backend's only responsibility is to expose each metric's history so the frontend can combine whichever subset the user selects.
+
+---
+
+# 23. Weight chart
+
+Show:
+
+- logged weight;
+- progress over time;
+- optionally a 7-day moving average.
+
+The moving average can help visualize the trend and reduce the visual impact of daily fluctuations.
+
+Filters:
+
+```text
+7 days
+30 days
+3 months
+6 months
+1 year
+```
+
+In the future:
+
+```text
+custom period
+```
+
+---
+
+# 24. Calorie chart
+
+Show per day:
+
+- calories consumed;
+- daily target.
+
+Example:
+
+```text
+Target: 2000 kcal
+
+09/01 → 1920
+09/02 → 2150
+09/03 → 1720
+09/04 → 1850
+```
+
+This allows visualizing days above or below the target.
+
+In the future:
+
+- daily average;
+- weekly average;
+- estimated cumulative deficit/surplus;
+- trend.
+
+---
+
+# 25. Macronutrient chart
+
+Just like calories, protein, carbohydrates, and fat must be trackable as both data and charts — not only as numbers embedded inside a meal.
+
+Show per day:
+
+- protein consumed (g);
+- carbohydrates consumed (g);
+- fat consumed (g);
+- optionally a target for each macronutrient (future feature, see Section 36).
+
+Example:
+
+```text
+09/01 → Protein 140g | Carbs 190g | Fat 55g
+09/02 → Protein 155g | Carbs 210g | Fat 62g
+09/03 → Protein 130g | Carbs 160g | Fat 48g
+09/04 → Protein 135g | Carbs 175g | Fat 50g
+```
+
+Suggested visualizations:
+
+- one line/bar per macronutrient over time, using the same period filters as the calorie chart (7 days, 30 days, 3 months, 6 months, 1 year);
+- a daily macronutrient breakdown (e.g. stacked bar or donut) showing the share of protein, carbs, and fat for the selected day.
+
+The macronutrient chart follows the same filtering rules as the calorie chart (Section 24) so the user can compare periods consistently.
+
+---
+
+# 26. Water chart
+
+Show per day:
+
+- water consumed (ml or L);
+- optionally a daily water target, if configured (Section 36).
+
+Example:
+
+```text
+09/01 → 1800 ml
+09/02 → 2100 ml
+09/03 → 1500 ml
+09/04 → 2000 ml
+```
+
+Uses the same period filters as the other charts (7 days, 30 days, 3 months, 6 months, 1 year).
+
+---
+
+# 27. Combined metrics chart
+
+The user can select two or more metrics — for example calories + protein, or weight + calories + water — and view them together on a single chart, over the same period filter.
+
+Example selection:
+
+```text
+Selected metrics: Calories, Protein, Water
+Period: 30 days
+```
+
+Rules:
+
+- selecting a single metric is equivalent to viewing that metric's individual chart (Sections 23–26);
+- there is no fixed limit on how many metrics can be combined — the user may select all six if useful, though usability may guide a sensible default (e.g. up to 3 preselected);
+- the combined chart reuses the same per-metric history data returned by the dashboard endpoint (Section 33) — no separate persisted data or endpoint is needed for combinations.
+
+This is purely a presentation feature: the backend always returns the full set of metric histories for the requested period, and the frontend decides which ones are currently selected and how to render them together (see Section 22 for rendering considerations).
+
+---
+
+# 28. Persisted vs. derived data
+
+Fundamental principle:
+
+> Persist facts, not visualizations.
+
+Persist:
+
+```text
+Weight logged on a given date
+Water intake logged at a given time
+Meal that took place
+Food consumed
+Quantity consumed
+Nutritional values
+User's target
+```
+
+There is no need to persist:
+
+```text
+Chart
+Weekly progression
+Monthly progression
+Yearly progression
+Weekly average
+Monthly average
+Daily water total
+```
+
+This data can be derived from historical records.
+
+---
+
+# 29. Full day example
+
+User logs:
+
+```text
+Weight:
+87.6 kg
+
+Target:
+2000 kcal
+```
+
+Water:
+
+```text
+08:00 → 250 ml
+11:30 → 300 ml
+14:00 → 500 ml
+19:00 → 250 ml
+```
+
+Breakfast:
+
+```text
+2 eggs
+bread
+cheese
+```
+
+Lunch:
+
+```text
+200g rice
+150g chicken
+100g beans
+```
+
+Snack:
+
+```text
+1/2 cup of yogurt
+```
+
+Dinner:
+
+```text
+...
+```
+
+Each meal contains its `MealItems`.
+
+The backend calculates the meal's values.
+
+Then aggregates:
+
+```text
+Breakfast
++
+Lunch
++
+Snack
++
+Dinner
+=
+DailyCalories, DailyProtein, DailyCarbs, DailyFat
+
+WaterEntries for the day
+=
+DailyWater
+```
+
+The dashboard can show:
+
+```text
+1,720 / 2,000 kcal
+130g protein / 160g carbs / 48g fat
+1,300 ml water
+
+87.6 kg
+```
+
+---
+
+# 30. Conceptual Firestore structure
+
+A possible structure:
+
+```text
+users/
+    {userId}
+
+meals/
+    {mealId}
+        items/
+            {itemId}
+
+weightEntries/
+    {entryId}
+
+waterEntries/
+    {entryId}
+
+foods/
+    {foodId}
+
+foodServings/
+    {servingId}
+```
+
+`FoodServing` could also be modeled as a subcollection of `Food`.
+
+The physical decision can be made during implementation.
+
+What matters is keeping the conceptual entities:
+
+```text
+User
+Meal
+MealItem
+WeightEntry
+WaterEntry
+Food
+FoodServing
+```
+
+---
+
+# 31. Relationship between user and data
+
+Every entity directly belonging to a user must allow identifying its owner.
+
+Example:
+
+```text
+User
+id = U1
+
+Meal
+id = M1
+userId = U1
+
+WeightEntry
+id = W1
+userId = U1
+
+WaterEntry
+id = WA1
+userId = U1
+```
+
+So:
+
+```text
+U1
+├── M1
+├── M2
+├── M3
+├── W1
+├── W2
+└── WA1
+```
+
+This will allow, in the future:
+
+```text
+U1 → their data
+U2 → their data
+U3 → their data
+```
+
+without remodeling the domain.
+
+---
+
+# 32. Conceptual endpoints
+
+The API can evolve into something like:
+
+```text
+GET    /profile
+PUT    /profile
+
+GET    /foods/search?q=...
+GET    /foods/{id}
+POST   /foods
+
+GET    /meals?from=...&to=...
+GET    /meals/{id}
+POST   /meals
+PUT    /meals/{id}
+DELETE /meals/{id}
+
+GET    /weight-entries?from=...&to=...
+POST   /weight-entries
+PUT    /weight-entries/{id}
+DELETE /weight-entries/{id}
+
+GET    /water-entries?from=...&to=...
+POST   /water-entries
+PUT    /water-entries/{id}
+DELETE /water-entries/{id}
+
+GET    /dashboard?from=...&to=...
+```
+
+The exact contracts will be defined during implementation.
+
+---
+
+# 33. Dashboard API
+
+There can be a dedicated endpoint providing aggregated dashboard data:
+
+```text
+GET /dashboard?from=2026-09-01&to=2026-09-30
+```
+
+Conceptual response:
+
+```json
+{
+  "calorieTarget": 2000,
+  "currentWeight": 87.6,
+  "targetWeight": 80,
+  "weightHistory": [
+    {
+      "date": "2026-09-01",
+      "weight": 88.1
+    },
+    {
+      "date": "2026-09-02",
+      "weight": 87.9
+    }
+  ],
+  "calorieHistory": [
+    {
+      "date": "2026-09-01",
+      "calories": 1920
+    },
+    {
+      "date": "2026-09-02",
+      "calories": 2150
+    }
+  ],
+  "macronutrientHistory": [
+    {
+      "date": "2026-09-01",
+      "protein": 140,
+      "carbs": 190,
+      "fat": 55
+    },
+    {
+      "date": "2026-09-02",
+      "protein": 155,
+      "carbs": 210,
+      "fat": 62
+    }
+  ],
+  "waterHistory": [
+    {
+      "date": "2026-09-01",
+      "water": 1800
+    },
+    {
+      "date": "2026-09-02",
+      "water": 2100
+    }
+  ]
+}
+```
+
+The frontend remains mainly responsible for presentation, including deciding which metrics to render individually or combined (Section 27).
+
+---
+
+# 34. Initial UX
+
+Dashboard:
+
+```text
+┌───────────────────────────────┐
+│          DASHBOARD            │
+│                               │
+│ Current weight  87.6 kg       │
+│ Target          80.0 kg       │
+│                               │
+│ Calories today  1720 / 2000   │
+│ Protein today   130g          │
+│ Carbs today     160g          │
+│ Fat today       48g           │
+│ Water today     1300 ml       │
+│                               │
+│ ───────────────────────────── │
+│                               │
+│ Charts        [Individual|Combined] │
+│                               │
+│ Weight                         │
+│       chart                   │
+│                               │
+│ ───────────────────────────── │
+│                               │
+│ Calories                       │
+│       chart                   │
+│                               │
+│ ───────────────────────────── │
+│                               │
+│ Macronutrients                 │
+│       chart                   │
+│                               │
+│ ───────────────────────────── │
+│                               │
+│ Water                          │
+│       chart                   │
+│                               │
+└───────────────────────────────┘
+```
+
+A metric picker lets the user switch any chart between an individual metric and a combination of two or more (Section 27) — e.g. tapping "Calories" and "Protein" together renders one combined chart instead of two separate ones.
+
+Quick actions:
+
+```text
++ Log meal
++ Log weight
++ Log water
+```
+
+---
+
+# 35. MVP features
+
+## Do
+
+- React Native.
+- Expo.
+- TypeScript.
+- .NET API.
+- Firebase Authentication.
+- Firestore.
+- Firebase Admin SDK.
+- Integration with external nutritional API.
+- Food cache in Firestore.
+- User profile.
+- Daily calorie target.
+- Meal logging.
+- MealItem logging.
+- Calorie/macronutrient calculation.
+- Optional weight logging.
+- Weight history.
+- Water logging.
+- Water history.
+- Dashboard.
+- Weight chart.
+- Calorie chart.
+- Macronutrient chart (protein, carbs, fat).
+- Water chart.
+- Combined/selectable metrics chart (view any subset of weight, calories, protein, carbs, fat, and water together).
+- Daily totals for calories, protein, carbs, fat, and water.
+- Period filters.
+
+## Not initially
+
+- Professional nutrition system.
+- Wearable integration.
+- AI-based food recognition.
+- Portion estimation from photos.
+- Social features.
+- Sharing.
+- Advanced administration.
+- Premature optimizations.
+- Overly complex architecture.
+
+---
+
+# 36. Future features
+
+Possibilities:
+
+- Social login.
+- Full multi-user support.
+- Favorite meals.
+- "Add my usual lunch".
+- Custom foods.
+- Barcode scanner.
+- Notifications/reminders (e.g. water intake reminders).
+- Offline support + sync.
+- Protein targets.
+- Carbohydrate targets.
+- Fat targets.
+- Water intake target.
+- Weight moving average.
+- Estimated rate of loss.
+- Target history.
+- Companion PWA/web app.
+- Sharing between users.
+
+---
+
+# 37. Recommended implementation order
+
+## Phase 1 — Foundation
+
+1. Create React Native + Expo + TypeScript project.
+2. Create .NET Web API.
+3. Configure Firebase.
+4. Configure Firebase Authentication.
+5. Configure Firestore.
+6. Configure Firebase Admin SDK on the backend.
+
+## Phase 2 — Profile
+
+7. Create User/Profile.
+8. Create profile read/update.
+9. Configure daily calorie target.
+
+## Phase 3 — Weight & Water
+
+10. Create WeightEntry.
+11. Create weight endpoints.
+12. Create weight logging screen.
+13. Create weight history view.
+14. Create WaterEntry.
+15. Create water endpoints.
+16. Create water logging screen.
+17. Include water totals in history/dashboard aggregation.
+
+## Phase 4 — Foods
+
+18. Create Food.
+19. Integrate external nutritional API.
+20. Implement cache.
+21. Create FoodServing.
+22. Implement unit conversion.
+
+## Phase 5 — Meals
+
+23. Create Meal.
+24. Create MealItem.
+25. Implement nutritional calculation.
+26. Implement nutritional snapshot.
+27. Create meal logging screen.
+
+## Phase 6 — Dashboard
+
+28. Create dashboard endpoint.
+29. Aggregate calories, macronutrients, and water per day.
+30. Fetch weight history.
+31. Create weight chart.
+32. Create calorie chart.
+33. Create macronutrient chart.
+34. Create water chart.
+35. Implement combined/selectable metrics chart.
+36. Add period filters.
+
+## Phase 7 — Refinement
+
+37. Improve mobile UX.
+38. Create logging shortcuts.
+39. Add error handling.
+40. Add loading/empty states.
+41. Add validations.
+42. Add key tests.
+
+---
+
+# 38. Architectural principles
+
+1. The frontend does not access Firestore directly.
+2. The .NET API is the domain boundary.
+3. The backend identifies the user from the authenticated token.
+4. Never trust a `userId` sent by the frontend.
+5. Entities belonging to a user carry a `userId`.
+6. User IDs and entity IDs are independent.
+7. `MealId` identifies a meal.
+8. `UserId` identifies the owner.
+9. `Food` represents nutritional information/cache.
+10. `MealItem` stores a nutritional snapshot.
+11. Mass and volume are different units.
+12. Servings are food-specific.
+13. Persist historical facts.
+14. Derive charts and aggregations — including calorie, macronutrient (protein, carbs, fat), and water totals and charts, viewable individually or combined.
+15. Avoid unnecessary complexity in the MVP.
+16. Keep the domain ready for growth without building features that have no value yet.
+
+---
+
+# 39. Final architectural summary
+
+```text
+React Native + Expo
+        |
+        | HTTPS / JSON
+        v
+     .NET API
+        |
+        +---------------------+
+        |                     |
+        v                     v
+Firebase Auth            Firestore
+                              |
+                              +-- Users
+                              +-- Meals
+                              +-- MealItems
+                              +-- WeightEntries
+                              +-- WaterEntries
+                              +-- Foods
+                              +-- FoodServings
+
+                              +
+                              |
+                              v
+                       External Food API
+```
+
+Firebase provides the managed infrastructure.
+
+Firebase Authentication provides authentication.
+
+Firestore provides persistence.
+
+The .NET API concentrates the domain, authorization, calculations, and integrations.
+
+The React Native + Expo frontend provides the mobile experience.
+
+The database stores facts:
+
+```text
+"I ate this."
+"I weighed this."
+"I drank this."
+"This food has these nutritional values."
+"My target is this."
+```
+
+The dashboard transforms these facts into:
+
+```text
+calories per day
+protein, carbs, and fat per day
+water intake per day
+average calories, macronutrients, and water
+estimated deficit/surplus
+weight over time
+weight trend
+progress toward the target
+individual or combined metric charts
+```
+
+The first version must remain small, functional, and easy to evolve.
+
+The architecture should not anticipate unnecessary complexity, but it also should not create a dead end for authentication, multi-user support, custom foods, favorite meals, notifications, barcode scanning, or offline support.

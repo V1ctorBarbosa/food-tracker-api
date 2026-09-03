@@ -1,0 +1,26 @@
+# .NET
+api/**/bin/
+api/**/obj/
+*.user
+
+# Secrets / credentials — never commit Firebase service account keys or env files
+**/firebase-service-account*.json
+**/*.serviceaccount.json
+.env
+.env.*
+!.env.example
+
+# Node / Expo / React Native (for the future mobile/ app)
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+*.log
+npm-debug.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vs/
+.vscode/
+.idea/

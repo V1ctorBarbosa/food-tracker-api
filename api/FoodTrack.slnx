@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FoodTrack.Api/FoodTrack.Api.csproj" />
+    <Project Path="src/FoodTrack.Application/FoodTrack.Application.csproj" />
+    <Project Path="src/FoodTrack.Domain/FoodTrack.Domain.csproj" />
+    <Project Path="src/FoodTrack.Infrastructure/FoodTrack.Infrastructure.csproj" />
+  </Folder>
+</Solution>

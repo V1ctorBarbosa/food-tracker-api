@@ -1,0 +1,6 @@
+@FoodTrack.Api_HostAddress = http://localhost:5281
+
+GET {{FoodTrack.Api_HostAddress}}/health
+Accept: application/json
+
+###
