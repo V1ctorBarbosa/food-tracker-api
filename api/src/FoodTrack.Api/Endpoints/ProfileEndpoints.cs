@@ -6,15 +6,14 @@ namespace FoodTrack.Api.Endpoints;
 
 public static class ProfileEndpoints
 {
+    private const string RoutePrefix = "/profile";
+
     public static IEndpointRouteBuilder MapProfileEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/profile", GetProfileAsync)
-            .RequireAuthorization()
-            .WithName("GetProfile");
+        var group = app.MapGroup(RoutePrefix).RequireAuthorization();
 
-        app.MapPut("/profile", UpsertProfileAsync)
-            .RequireAuthorization()
-            .WithName("UpsertProfile");
+        group.MapGet("/", GetProfileAsync).WithName(RouteNames.GetProfile);
+        group.MapPut("/", UpsertProfileAsync).WithName(RouteNames.UpsertProfile);
 
         return app;
     }
@@ -27,7 +26,8 @@ public static class ProfileEndpoints
         var userId = user.GetAuthenticatedUserId();
         var profile = await profileService.GetProfileAsync(userId, cancellationToken);
 
-        return profile is null ? Results.NotFound() : Results.Ok(profile);
+        var profileResponse = profile is null ? Results.NotFound() : Results.Ok(profile);
+        return profileResponse;
     }
 
     private static async Task<IResult> UpsertProfileAsync(
@@ -47,5 +47,11 @@ public static class ProfileEndpoints
         {
             return Results.BadRequest(new { error = ex.Message });
         }
+    }
+
+    private static class RouteNames
+    {
+        public const string GetProfile = "GetProfile";
+        public const string UpsertProfile = "UpsertProfile";
     }
 }
