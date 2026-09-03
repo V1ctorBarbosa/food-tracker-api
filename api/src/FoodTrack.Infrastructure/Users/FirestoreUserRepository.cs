@@ -1,5 +1,4 @@
 using FoodTrack.Application.Users;
-using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Users;
 using Google.Cloud.Firestore;
 
@@ -27,38 +26,15 @@ public sealed class FirestoreUserRepository : IUserRepository
             return null;
         }
 
-        return MapToDomain(userId, snapshot.ConvertTo<UserDocument>());
+        return UserDocumentMapper.ToDomain(userId, snapshot.ConvertTo<UserDocument>());
     }
 
     public async Task SaveAsync(User user, CancellationToken cancellationToken = default)
     {
-        var document = MapToDocument(user);
+        var document = UserDocumentMapper.ToDocument(user);
 
         await _firestoreDb.Collection(CollectionName)
             .Document(user.Id.Value)
             .SetAsync(document, cancellationToken: cancellationToken);
     }
-
-    private static User MapToDomain(UserId id, UserDocument document) => User.Create(
-        id,
-        document.Name,
-        new Age(document.Age),
-        new Centimeters(document.HeightCentimeters),
-        Enum.Parse<Sex>(document.Sex),
-        Enum.Parse<ActivityLevel>(document.ActivityLevel),
-        new Kilocalories(document.DailyCalorieTarget),
-        new Kilocalories(document.DesiredCalorieDeficit),
-        document.TargetWeightKilograms is { } weight ? new Kilograms(weight) : null);
-
-    private static UserDocument MapToDocument(User user) => new()
-    {
-        Name = user.Name,
-        Age = user.Age.Value,
-        HeightCentimeters = user.Height.Value,
-        Sex = user.Sex.ToString(),
-        ActivityLevel = user.ActivityLevel.ToString(),
-        TargetWeightKilograms = user.TargetWeight?.Value,
-        DesiredCalorieDeficit = user.DesiredCalorieDeficit.Value,
-        DailyCalorieTarget = user.DailyCalorieTarget.Value,
-    };
 }

@@ -1,6 +1,6 @@
 using System.Security.Claims;
+using FoodTrack.Api.Authentication;
 using FoodTrack.Application.Users;
-using FoodTrack.Domain.Users;
 
 namespace FoodTrack.Api.Endpoints;
 
@@ -24,7 +24,7 @@ public static class ProfileEndpoints
         UserProfileService profileService,
         CancellationToken cancellationToken)
     {
-        var userId = GetAuthenticatedUserId(user);
+        var userId = user.GetAuthenticatedUserId();
         var profile = await profileService.GetProfileAsync(userId, cancellationToken);
 
         return profile is null ? Results.NotFound() : Results.Ok(profile);
@@ -38,7 +38,7 @@ public static class ProfileEndpoints
     {
         try
         {
-            var userId = GetAuthenticatedUserId(user);
+            var userId = user.GetAuthenticatedUserId();
             var profile = await profileService.UpsertProfileAsync(userId, request, cancellationToken);
 
             return Results.Ok(profile);
@@ -47,13 +47,5 @@ public static class ProfileEndpoints
         {
             return Results.BadRequest(new { error = ex.Message });
         }
-    }
-
-    private static UserId GetAuthenticatedUserId(ClaimsPrincipal principal)
-    {
-        var uid = principal.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new InvalidOperationException("Authenticated request is missing a user identifier claim.");
-
-        return new UserId(uid);
     }
 }
