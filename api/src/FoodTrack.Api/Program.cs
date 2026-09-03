@@ -43,5 +43,7 @@ app.MapGet("/health/firebase", async (FirestoreDb firestoreDb) =>
 .WithName("GetFirebaseHealth");
 
 app.MapProfileEndpoints();
+app.MapWeightEntryEndpoints();
+app.MapWaterEntryEndpoints();
 
 app.Run();

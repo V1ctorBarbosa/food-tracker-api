@@ -1,6 +1,10 @@
 using FoodTrack.Application.Users;
+using FoodTrack.Application.WaterEntries;
+using FoodTrack.Application.WeightEntries;
 using FoodTrack.Infrastructure.Firebase;
 using FoodTrack.Infrastructure.Users;
+using FoodTrack.Infrastructure.WaterEntries;
+using FoodTrack.Infrastructure.WeightEntries;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,6 +16,8 @@ public static class DependencyInjection
     {
         services.AddFirebaseAdmin(configuration);
         services.AddScoped<IUserRepository, FirestoreUserRepository>();
+        services.AddScoped<IWeightEntryRepository, FirestoreWeightEntryRepository>();
+        services.AddScoped<IWaterEntryRepository, FirestoreWaterEntryRepository>();
 
         return services;
     }
