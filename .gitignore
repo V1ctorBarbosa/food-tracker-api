@@ -14,11 +14,10 @@ api/**/obj/
 # itself (endpoints, no secrets) is fine to commit; environments are not.
 **/*.postman_environment.json
 
-# Node / Expo / React Native (for the future mobile/ app)
-mobile/node_modules/
-mobile/.expo/
-mobile/dist/
-mobile/web-build/
+# app/ is its own independent git repository (food-tracker-app on GitHub), nested here only
+# for local convenience -- this repo must never track or touch its contents.
+/app/
+
 *.log
 npm-debug.*
 
