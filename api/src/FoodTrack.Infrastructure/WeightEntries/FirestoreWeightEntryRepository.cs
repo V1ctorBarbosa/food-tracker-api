@@ -55,6 +55,23 @@ public sealed class FirestoreWeightEntryRepository : IWeightEntryRepository
             .ToList();
     }
 
+    public async Task<WeightEntry?> GetMostRecentAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        var query = _firestoreDb.Collection(CollectionName)
+            .WhereEqualTo(nameof(WeightEntryDocument.UserId), userId.Value)
+            .OrderByDescending(nameof(WeightEntryDocument.Date))
+            .Limit(1);
+
+        var snapshot = await query.GetSnapshotAsync(cancellationToken);
+        var mostRecentDocument = snapshot.Documents.FirstOrDefault();
+        if (mostRecentDocument is null)
+        {
+            return null;
+        }
+
+        return WeightEntryDocumentMapper.ToDomain(new WeightEntryId(mostRecentDocument.Id), mostRecentDocument.ConvertTo<WeightEntryDocument>());
+    }
+
     public async Task AddAsync(WeightEntry entry, CancellationToken cancellationToken = default)
     {
         var document = WeightEntryDocumentMapper.ToDocument(entry);

@@ -17,6 +17,12 @@ public interface IWeightEntryRepository
         DateOnly to,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The single most recent entry for the user, regardless of date range -- used to answer
+    /// "what does the user weigh right now" independently of any chart's date window.
+    /// </summary>
+    Task<WeightEntry?> GetMostRecentAsync(UserId userId, CancellationToken cancellationToken = default);
+
     Task AddAsync(WeightEntry entry, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(WeightEntry entry, CancellationToken cancellationToken = default);

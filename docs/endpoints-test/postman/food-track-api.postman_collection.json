@@ -246,6 +246,28 @@
           }
         }
       ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard?from=2026-09-01&to=2026-09-30",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard"],
+              "query": [
+                { "key": "from", "value": "2026-09-01" },
+                { "key": "to", "value": "2026-09-30" }
+              ]
+            },
+            "description": "Aggregates meals, water entries and weight entries into one payload for charting. Returns 404 until the caller has upserted a profile at least once (Upsert Profile). currentWeightKilograms is the most recent weight entry the user has ever logged, regardless of from/to -- it answers \"what do I weigh right now\", not \"what did I weigh in this window\". weightHistory only contains days with an actual entry (sparse, since weight is not expected to be logged daily); nutritionHistory has exactly one entry per calendar day in [from, to], zero-filled for days with no meals or water logged, so charts render a continuous line without gap-filling client-side."
+          }
+        }
+      ]
     }
   ]
 }

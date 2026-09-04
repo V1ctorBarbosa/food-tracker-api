@@ -47,5 +47,6 @@ app.MapWeightEntryEndpoints();
 app.MapWaterEntryEndpoints();
 app.MapFoodEndpoints();
 app.MapMealEndpoints();
+app.MapDashboardEndpoints();
 
 app.Run();
