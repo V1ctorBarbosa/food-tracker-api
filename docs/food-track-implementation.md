@@ -385,13 +385,15 @@ Meal
 --------------------------
 id
 userId
-date
+loggedAt
 mealType
 totalCalories
 totalProtein
 totalCarbs
 totalFat
 ```
+
+`loggedAt` is a real timestamp (date + time), not just a date — set by the server to "now" when the meal is created, and preserved (not reset) when items are later added or edited. The calendar date used for grouping into a day (e.g. the dashboard's daily history) is derived from it rather than stored separately, the same way `WaterEntry.loggedAt` already works (Section 9).
 
 Possible types:
 
@@ -578,6 +580,16 @@ Firestore
 ```
 
 After the first lookup, the food becomes available locally.
+
+**Implemented as two external sources queried together**, not one (`FoodTrack.Infrastructure/Foods/CompositeFoodSource`):
+USDA FoodData Central for generic ingredients (raw/whole foods, always in English), and Open Food
+Facts for Brazilian branded products (scoped to `countries_tags:"en:brazil"` and `lang=pt`, so
+search matches the Portuguese names actual Brazilian packaging was scanned with). Both speak
+`IExternalFoodSource`; the composite runs them in parallel and concatenates the results, so a
+search shows the raw ingredient and the specific packaged product side by side. One source
+failing (e.g. a network error) degrades to just the other's results rather than failing the whole
+search. `Food.Source` (`FoodSource` enum) records which one a cached food came from: `Usda`,
+`OpenFoodFacts`, or `Custom`.
 
 It will also be possible to create custom foods in the future, such as:
 

@@ -87,7 +87,8 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/weight-entries", "host": ["{{baseUrl}}"], "path": ["weight-entries"] },
-            "body": { "mode": "raw", "raw": "{\n  \"date\": \"2026-09-03\",\n  \"weightKilograms\": 87.6\n}" }
+            "body": { "mode": "raw", "raw": "{\n  \"weightKilograms\": 87.6\n}" },
+            "description": "LoggedAt is set to the current server time and returned in the response; there is no date field on create."
           }
         },
         {
@@ -96,7 +97,8 @@
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/weight-entries/:id", "host": ["{{baseUrl}}"], "path": ["weight-entries", ":id"], "variable": [{ "key": "id", "value": "" }] },
-            "body": { "mode": "raw", "raw": "{\n  \"date\": \"2026-09-03\",\n  \"weightKilograms\": 87.2\n}" }
+            "body": { "mode": "raw", "raw": "{\n  \"weightKilograms\": 87.2\n}" },
+            "description": "LoggedAt is preserved from the original entry, not reset to the edit time."
           }
         },
         {
@@ -181,6 +183,16 @@
             "url": { "raw": "{{baseUrl}}/foods/:id", "host": ["{{baseUrl}}"], "path": ["foods", ":id"], "variable": [{ "key": "id", "value": "" }] },
             "description": "id here is FoodTrack's own FoodId (from a Search Foods result), not USDA's fdcId."
           }
+        },
+        {
+          "name": "Create Custom Food",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/foods", "host": ["{{baseUrl}}"], "path": ["foods"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"My whey\",\n  \"calories\": 120,\n  \"protein\": 24,\n  \"carbs\": 3,\n  \"fat\": 1.5\n}" },
+            "description": "Creates a personal food (FoodSource.Custom), always per 100g. Only visible to the authenticated user who created it -- it never shows up in another user's Search Foods results."
+          }
         }
       ]
     },
@@ -219,9 +231,9 @@
             "url": { "raw": "{{baseUrl}}/meals", "host": ["{{baseUrl}}"], "path": ["meals"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"date\": \"2026-09-03\",\n  \"mealType\": \"Lunch\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 200,\n      \"unit\": \"Gram\",\n      \"foodServingId\": null,\n      \"servingCount\": null\n    }\n  ]\n}"
+              "raw": "{\n  \"mealType\": \"Lunch\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 200,\n      \"unit\": \"Gram\",\n      \"foodServingId\": null,\n      \"servingCount\": null\n    }\n  ]\n}"
             },
-            "description": "Each item needs exactly one of two shapes: (quantity + unit) for a raw amount, or (foodServingId + servingCount) to log by a named serving from that food's servings list (e.g. \"1 can\"). unit: Gram|Kilogram|Milliliter|Liter. mealType: Breakfast|Lunch|Dinner|Snack. Nutrition is computed and snapshotted server-side -- do not send calories/protein/carbs/fat."
+            "description": "Each item needs exactly one of two shapes: (quantity + unit) for a raw amount, or (foodServingId + servingCount) to log by a named serving from that food's servings list (e.g. \"1 can\"). unit: Gram|Kilogram|Milliliter|Liter. mealType: Breakfast|Lunch|Dinner|Snack. Nutrition is computed and snapshotted server-side -- do not send calories/protein/carbs/fat. LoggedAt is set to the current server time and returned in the response; there is no date field on create."
           }
         },
         {
@@ -232,9 +244,9 @@
             "url": { "raw": "{{baseUrl}}/meals/:id", "host": ["{{baseUrl}}"], "path": ["meals", ":id"], "variable": [{ "key": "id", "value": "" }] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"date\": \"2026-09-03\",\n  \"mealType\": \"Dinner\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": null,\n      \"unit\": null,\n      \"foodServingId\": \"<a serving id from that food>\",\n      \"servingCount\": 1\n    }\n  ]\n}"
+              "raw": "{\n  \"mealType\": \"Dinner\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": null,\n      \"unit\": null,\n      \"foodServingId\": \"<a serving id from that food>\",\n      \"servingCount\": 1\n    }\n  ]\n}"
             },
-            "description": "Full replace, same shape as Create Meal. Items not included here are removed from the meal."
+            "description": "Full replace, same shape as Create Meal (no date field here either). Items not included here are removed from the meal. LoggedAt is preserved from the original meal, not reset to the edit time."
           }
         },
         {
