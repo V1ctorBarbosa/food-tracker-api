@@ -12,7 +12,7 @@ public sealed class User
 
     public Centimeters Height { get; }
 
-    public Sex Sex { get; }
+    public Gender Gender { get; }
 
     public ActivityLevel ActivityLevel { get; }
 
@@ -22,26 +22,42 @@ public sealed class User
 
     public Kilocalories DailyCalorieTarget { get; }
 
+    public Milliliters? DailyWaterTarget { get; }
+
+    public Grams? DailyProteinTarget { get; }
+
+    public Grams? DailyCarbsTarget { get; }
+
+    public Grams? DailyFatTarget { get; }
+
     private User(
         UserId id,
         string name,
         Age age,
         Centimeters height,
-        Sex sex,
+        Gender gender,
         ActivityLevel activityLevel,
         Kilocalories dailyCalorieTarget,
         Kilocalories desiredCalorieDeficit,
-        Kilograms? targetWeight)
+        Kilograms? targetWeight,
+        Milliliters? dailyWaterTarget,
+        Grams? dailyProteinTarget,
+        Grams? dailyCarbsTarget,
+        Grams? dailyFatTarget)
     {
         Id = id;
         Name = name;
         Age = age;
         Height = height;
-        Sex = sex;
+        Gender = gender;
         ActivityLevel = activityLevel;
         DailyCalorieTarget = dailyCalorieTarget;
         DesiredCalorieDeficit = desiredCalorieDeficit;
         TargetWeight = targetWeight;
+        DailyWaterTarget = dailyWaterTarget;
+        DailyProteinTarget = dailyProteinTarget;
+        DailyCarbsTarget = dailyCarbsTarget;
+        DailyFatTarget = dailyFatTarget;
     }
 
     public static User Create(
@@ -49,17 +65,34 @@ public sealed class User
         string name,
         Age age,
         Centimeters height,
-        Sex sex,
+        Gender gender,
         ActivityLevel activityLevel,
         Kilocalories dailyCalorieTarget,
         Kilocalories desiredCalorieDeficit,
-        Kilograms? targetWeight = null)
+        Kilograms? targetWeight = null,
+        Milliliters? dailyWaterTarget = null,
+        Grams? dailyProteinTarget = null,
+        Grams? dailyCarbsTarget = null,
+        Grams? dailyFatTarget = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new ArgumentException("Name cannot be empty.", nameof(name));
         }
 
-        return new User(id, name.Trim(), age, height, sex, activityLevel, dailyCalorieTarget, desiredCalorieDeficit, targetWeight);
+        return new User(
+            id,
+            name.Trim(),
+            age,
+            height,
+            gender,
+            activityLevel,
+            dailyCalorieTarget,
+            desiredCalorieDeficit,
+            targetWeight,
+            dailyWaterTarget,
+            dailyProteinTarget,
+            dailyCarbsTarget,
+            dailyFatTarget);
     }
 }

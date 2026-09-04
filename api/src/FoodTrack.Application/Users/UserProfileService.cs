@@ -34,16 +34,44 @@ public sealed class UserProfileService
             targetWeight = new Kilograms(weight);
         }
 
+        Milliliters? dailyWaterTarget = null;
+        if (request.DailyWaterTargetMilliliters is { } water)
+        {
+            dailyWaterTarget = new Milliliters(water);
+        }
+
+        Grams? dailyProteinTarget = null;
+        if (request.DailyProteinTargetGrams is { } protein)
+        {
+            dailyProteinTarget = new Grams(protein);
+        }
+
+        Grams? dailyCarbsTarget = null;
+        if (request.DailyCarbsTargetGrams is { } carbs)
+        {
+            dailyCarbsTarget = new Grams(carbs);
+        }
+
+        Grams? dailyFatTarget = null;
+        if (request.DailyFatTargetGrams is { } fat)
+        {
+            dailyFatTarget = new Grams(fat);
+        }
+
         var user = User.Create(
             userId,
             request.Name,
             new Age(request.Age),
             new Centimeters(request.HeightCentimeters),
-            Enum.Parse<Sex>(request.Sex, ignoreCase: true),
+            Enum.Parse<Gender>(request.Gender, ignoreCase: true),
             Enum.Parse<ActivityLevel>(request.ActivityLevel, ignoreCase: true),
             new Kilocalories(request.DailyCalorieTarget),
             new Kilocalories(request.DesiredCalorieDeficit),
-            targetWeight);
+            targetWeight,
+            dailyWaterTarget,
+            dailyProteinTarget,
+            dailyCarbsTarget,
+            dailyFatTarget);
 
         await _userRepository.SaveAsync(user, cancellationToken);
         return ToDto(user);
@@ -54,9 +82,13 @@ public sealed class UserProfileService
         user.Name,
         user.Age.Value,
         user.Height.Value,
-        user.Sex.ToString(),
+        user.Gender.ToString(),
         user.ActivityLevel.ToString(),
         user.TargetWeight?.Value,
         user.DesiredCalorieDeficit.Value,
-        user.DailyCalorieTarget.Value);
+        user.DailyCalorieTarget.Value,
+        user.DailyWaterTarget?.Value,
+        user.DailyProteinTarget?.Value,
+        user.DailyCarbsTarget?.Value,
+        user.DailyFatTarget?.Value);
 }

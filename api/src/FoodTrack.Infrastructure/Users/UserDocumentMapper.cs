@@ -18,16 +18,44 @@ internal static class UserDocumentMapper
             targetWeight = new Kilograms(weight);
         }
 
+        Milliliters? dailyWaterTarget = null;
+        if (document.DailyWaterTargetMilliliters is { } water)
+        {
+            dailyWaterTarget = new Milliliters(water);
+        }
+
+        Grams? dailyProteinTarget = null;
+        if (document.DailyProteinTargetGrams is { } protein)
+        {
+            dailyProteinTarget = new Grams(protein);
+        }
+
+        Grams? dailyCarbsTarget = null;
+        if (document.DailyCarbsTargetGrams is { } carbs)
+        {
+            dailyCarbsTarget = new Grams(carbs);
+        }
+
+        Grams? dailyFatTarget = null;
+        if (document.DailyFatTargetGrams is { } fat)
+        {
+            dailyFatTarget = new Grams(fat);
+        }
+
         return User.Create(
             id,
             document.Name,
             new Age(document.Age),
             new Centimeters(document.HeightCentimeters),
-            Enum.Parse<Sex>(document.Sex),
+            Enum.Parse<Gender>(document.Gender),
             Enum.Parse<ActivityLevel>(document.ActivityLevel),
             new Kilocalories(document.DailyCalorieTarget),
             new Kilocalories(document.DesiredCalorieDeficit),
-            targetWeight);
+            targetWeight,
+            dailyWaterTarget,
+            dailyProteinTarget,
+            dailyCarbsTarget,
+            dailyFatTarget);
     }
 
     public static UserDocument ToDocument(User user) => new()
@@ -35,10 +63,14 @@ internal static class UserDocumentMapper
         Name = user.Name,
         Age = user.Age.Value,
         HeightCentimeters = user.Height.Value,
-        Sex = user.Sex.ToString(),
+        Gender = user.Gender.ToString(),
         ActivityLevel = user.ActivityLevel.ToString(),
         TargetWeightKilograms = user.TargetWeight?.Value,
         DesiredCalorieDeficit = user.DesiredCalorieDeficit.Value,
         DailyCalorieTarget = user.DailyCalorieTarget.Value,
+        DailyWaterTargetMilliliters = user.DailyWaterTarget?.Value,
+        DailyProteinTargetGrams = user.DailyProteinTarget?.Value,
+        DailyCarbsTargetGrams = user.DailyCarbsTarget?.Value,
+        DailyFatTargetGrams = user.DailyFatTarget?.Value,
     };
 }

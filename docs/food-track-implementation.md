@@ -242,11 +242,15 @@ id
 name
 age
 height
-sex
+gender
 activityLevel
 targetWeight
 desiredCalorieDeficit
 dailyCalorieTarget
+dailyWaterTarget
+dailyProteinTarget
+dailyCarbsTarget
+dailyFatTarget
 ```
 
 Example:
@@ -257,15 +261,21 @@ Example:
   "name": "Victor",
   "age": 27,
   "height": 175,
-  "sex": "...",
+  "gender": "...",
   "activityLevel": "moderate",
   "targetWeight": 80,
   "desiredCalorieDeficit": 500,
-  "dailyCalorieTarget": 2000
+  "dailyCalorieTarget": 2000,
+  "dailyWaterTarget": 4000,
+  "dailyProteinTarget": 140,
+  "dailyCarbsTarget": 190,
+  "dailyFatTarget": 55
 }
 ```
 
-A configurable daily water target (e.g. `dailyWaterTarget`) is not required for the MVP — water is logged and displayed as a running daily total. It is a candidate future field (Section 36), following the same pattern as `dailyCalorieTarget`.
+`gender` is one of `Male`, `Female`, `TransMale`, `TransFemale`, `Nonbinary`, `Other`.
+
+`targetWeight`, `dailyWaterTarget`, `dailyProteinTarget`, `dailyCarbsTarget` and `dailyFatTarget` are all optional goals — a user may set none, some, or all of them. Only `dailyCalorieTarget` and `desiredCalorieDeficit` are required. These goals exist so the dashboard (Section 33) can render a reference line per metric (e.g. a 4 L/day water goal) alongside the user's actual history for that metric.
 
 ## Current weight
 
@@ -802,13 +812,13 @@ In the future the system may automatically calculate TDEE using:
 age
 height
 weight
-sex
+biological sex
 activity level
 ```
 
-The specific formula can be defined during implementation.
+The specific formula can be defined during implementation. Standard BMR formulas (e.g. Mifflin-St Jeor) branch on biological sex, not gender identity — `User.gender` (Section 7) is not a direct input to this formula. If auto-calculated TDEE is built, it needs its own, separately-collected biological-sex input for the formula, decoupled from the `gender` field the user sees and controls elsewhere in the profile.
 
-For the MVP, a configurable daily calorie target is enough. Water does not need a target for the MVP — it is tracked as a running daily total (Section 9); a configurable daily water target is a candidate future feature (Section 36), following the same pattern as macronutrient targets.
+Alongside the calorie target, the user profile also carries optional daily goals for water, protein, carbohydrates and fat (Section 7). Water is still tracked as a running daily total regardless of whether a goal is set (Section 9); the goal is only used as a reference line on the dashboard (Section 33).
 
 ---
 
@@ -940,7 +950,7 @@ Show per day:
 - protein consumed (g);
 - carbohydrates consumed (g);
 - fat consumed (g);
-- optionally a target for each macronutrient (future feature, see Section 36).
+- optionally a reference line for each macronutrient target, if the user has configured one (Section 7).
 
 Example:
 
@@ -965,7 +975,7 @@ The macronutrient chart follows the same filtering rules as the calorie chart (S
 Show per day:
 
 - water consumed (ml or L);
-- optionally a daily water target, if configured (Section 36).
+- optionally a reference line for the daily water target, if the user has configured one (Section 7).
 
 Example:
 
@@ -1256,55 +1266,51 @@ Conceptual response:
 
 ```json
 {
-  "calorieTarget": 2000,
-  "currentWeight": 87.6,
-  "targetWeight": 80,
+  "dailyCalorieTarget": 2000,
+  "currentWeightKilograms": 87.6,
+  "targetWeightKilograms": 80,
+  "dailyWaterTargetMilliliters": 4000,
+  "dailyProteinTargetGrams": 140,
+  "dailyCarbsTargetGrams": 190,
+  "dailyFatTargetGrams": 55,
   "weightHistory": [
     {
       "date": "2026-09-01",
-      "weight": 88.1
+      "weightKilograms": 88.1
     },
     {
-      "date": "2026-09-02",
-      "weight": 87.9
+      "date": "2026-09-03",
+      "weightKilograms": 87.6
     }
   ],
-  "calorieHistory": [
+  "nutritionHistory": [
     {
       "date": "2026-09-01",
-      "calories": 1920
-    },
-    {
-      "date": "2026-09-02",
-      "calories": 2150
-    }
-  ],
-  "macronutrientHistory": [
-    {
-      "date": "2026-09-01",
+      "calories": 1920,
       "protein": 140,
       "carbs": 190,
-      "fat": 55
+      "fat": 55,
+      "waterMilliliters": 1800
     },
     {
       "date": "2026-09-02",
+      "calories": 2150,
       "protein": 155,
       "carbs": 210,
-      "fat": 62
-    }
-  ],
-  "waterHistory": [
-    {
-      "date": "2026-09-01",
-      "water": 1800
-    },
-    {
-      "date": "2026-09-02",
-      "water": 2100
+      "fat": 62,
+      "waterMilliliters": 2100
     }
   ]
 }
 ```
+
+The `dailyCalorieTarget`, `targetWeightKilograms`, `dailyWaterTargetMilliliters`, `dailyProteinTargetGrams`, `dailyCarbsTargetGrams` and `dailyFatTargetGrams` fields mirror the user's profile goals (Section 7, all optional except `dailyCalorieTarget`) and let the frontend draw a reference line per metric.
+
+`currentWeightKilograms` is the most recent weight entry the user has logged overall, regardless of whether it falls inside `from`/`to` — it answers "what do I weigh right now," not "what did I weigh during this chart's window."
+
+`nutritionHistory` combines calories, macros and water into one array because they are always computed together from the same day's meals and water entries. It contains exactly one entry per calendar day in `[from, to]`, zero-filled for days with no meals or water logged, so the frontend can render a continuous line without filling gaps itself.
+
+`weightHistory`, in contrast, stays sparse — only days with an actual weight entry — since weight is not expected to be logged daily (Section 8) and a fabricated zero would be misleading.
 
 The frontend remains mainly responsible for presentation, including deciding which metrics to render individually or combined (Section 27).
 
@@ -1421,10 +1427,6 @@ Possibilities:
 - Barcode scanner.
 - Notifications/reminders (e.g. water intake reminders).
 - Offline support + sync.
-- Protein targets.
-- Carbohydrate targets.
-- Fat targets.
-- Water intake target.
 - Weight moving average.
 - Estimated rate of loss.
 - Target history.

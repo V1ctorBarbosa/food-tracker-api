@@ -4,8 +4,12 @@ public sealed record UpsertUserProfileRequest(
     string Name,
     int Age,
     int HeightCentimeters,
-    string Sex,
+    string Gender,
     string ActivityLevel,
     double? TargetWeightKilograms,
     int DesiredCalorieDeficit,
-    int DailyCalorieTarget);
+    int DailyCalorieTarget,
+    int? DailyWaterTargetMilliliters,
+    double? DailyProteinTargetGrams,
+    double? DailyCarbsTargetGrams,
+    double? DailyFatTargetGrams);

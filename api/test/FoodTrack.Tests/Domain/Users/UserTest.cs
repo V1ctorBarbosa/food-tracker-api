@@ -19,7 +19,7 @@ public sealed class UserTest
             "Victor",
             new Age(27),
             new Centimeters(175),
-            Sex.Male,
+            Gender.Male,
             ActivityLevel.Moderate,
             new Kilocalories(2000),
             new Kilocalories(500),
@@ -30,7 +30,7 @@ public sealed class UserTest
         user.Name.Should().Be("Victor");
         user.Age.Value.Should().Be(27);
         user.Height.Value.Should().Be(175);
-        user.Sex.Should().Be(Sex.Male);
+        user.Gender.Should().Be(Gender.Male);
         user.ActivityLevel.Should().Be(ActivityLevel.Moderate);
         user.DailyCalorieTarget.Value.Should().Be(2000);
         user.DesiredCalorieDeficit.Value.Should().Be(500);
@@ -45,6 +45,51 @@ public sealed class UserTest
 
         // Assert
         user.TargetWeight.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_SetsOptionalGoals_WhenProvided()
+    {
+        // Arrange
+        var id = new UserId("firebase-uid-123");
+        var dailyWaterTarget = new Milliliters(4000);
+        var dailyProteinTarget = new Grams(140);
+        var dailyCarbsTarget = new Grams(190);
+        var dailyFatTarget = new Grams(55);
+
+        // Act
+        var user = User.Create(
+            id,
+            "Victor",
+            new Age(27),
+            new Centimeters(175),
+            Gender.Male,
+            ActivityLevel.Moderate,
+            new Kilocalories(2000),
+            new Kilocalories(500),
+            dailyWaterTarget: dailyWaterTarget,
+            dailyProteinTarget: dailyProteinTarget,
+            dailyCarbsTarget: dailyCarbsTarget,
+            dailyFatTarget: dailyFatTarget);
+
+        // Assert
+        user.DailyWaterTarget.Should().Be(dailyWaterTarget);
+        user.DailyProteinTarget.Should().Be(dailyProteinTarget);
+        user.DailyCarbsTarget.Should().Be(dailyCarbsTarget);
+        user.DailyFatTarget.Should().Be(dailyFatTarget);
+    }
+
+    [Fact]
+    public void Create_AllowsNullOptionalGoals()
+    {
+        // Act
+        var user = CreateValidUser();
+
+        // Assert
+        user.DailyWaterTarget.Should().BeNull();
+        user.DailyProteinTarget.Should().BeNull();
+        user.DailyCarbsTarget.Should().BeNull();
+        user.DailyFatTarget.Should().BeNull();
     }
 
     [Fact]
@@ -74,7 +119,7 @@ public sealed class UserTest
         name,
         new Age(27),
         new Centimeters(175),
-        Sex.Male,
+        Gender.Male,
         ActivityLevel.Moderate,
         new Kilocalories(2000),
         new Kilocalories(500),

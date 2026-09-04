@@ -55,9 +55,9 @@
             "url": { "raw": "{{baseUrl}}/profile", "host": ["{{baseUrl}}"], "path": ["profile"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Victor\",\n  \"age\": 27,\n  \"heightCentimeters\": 175,\n  \"sex\": \"Male\",\n  \"activityLevel\": \"Moderate\",\n  \"targetWeightKilograms\": 80,\n  \"desiredCalorieDeficit\": 500,\n  \"dailyCalorieTarget\": 2000\n}"
+              "raw": "{\n  \"name\": \"Victor\",\n  \"age\": 27,\n  \"heightCentimeters\": 175,\n  \"gender\": \"Male\",\n  \"activityLevel\": \"Moderate\",\n  \"targetWeightKilograms\": 80,\n  \"desiredCalorieDeficit\": 500,\n  \"dailyCalorieTarget\": 2000,\n  \"dailyWaterTargetMilliliters\": 4000,\n  \"dailyProteinTargetGrams\": 140,\n  \"dailyCarbsTargetGrams\": 190,\n  \"dailyFatTargetGrams\": 55\n}"
             },
-            "description": "Full replace (create-or-update). sex: Male|Female. activityLevel: Sedentary|Light|Moderate|Active|VeryActive. targetWeightKilograms is optional (omit or null)."
+            "description": "Full replace (create-or-update). gender: Male|Female|TransMale|TransFemale|Nonbinary|Other. activityLevel: Sedentary|Light|Moderate|Active|VeryActive. targetWeightKilograms, dailyWaterTargetMilliliters, dailyProteinTargetGrams, dailyCarbsTargetGrams and dailyFatTargetGrams are all optional goals (omit or null) -- only dailyCalorieTarget and desiredCalorieDeficit are required."
           }
         }
       ]

@@ -15,7 +15,7 @@ internal sealed class UserDocument
     public int HeightCentimeters { get; set; }
 
     [FirestoreProperty]
-    public string Sex { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty;
 
     [FirestoreProperty]
     public string ActivityLevel { get; set; } = string.Empty;
@@ -28,4 +28,16 @@ internal sealed class UserDocument
 
     [FirestoreProperty]
     public int DailyCalorieTarget { get; set; }
+
+    [FirestoreProperty]
+    public int? DailyWaterTargetMilliliters { get; set; }
+
+    [FirestoreProperty]
+    public double? DailyProteinTargetGrams { get; set; }
+
+    [FirestoreProperty]
+    public double? DailyCarbsTargetGrams { get; set; }
+
+    [FirestoreProperty]
+    public double? DailyFatTargetGrams { get; set; }
 }
