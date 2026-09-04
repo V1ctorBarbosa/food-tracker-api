@@ -17,6 +17,7 @@ namespace FoodTrack.Infrastructure;
 public static class DependencyInjection
 {
     private const string UsdaFoodDataCentralBaseUrl = "https://api.nal.usda.gov/fdc/v1/";
+    private const string OpenFoodFactsBaseUrl = "https://search.openfoodfacts.org/";
 
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -33,10 +34,17 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddHttpClient<IExternalFoodSource, UsdaFoodDataCentralClient>(client =>
+        services.AddHttpClient<UsdaFoodDataCentralClient>(client =>
         {
             client.BaseAddress = new Uri(UsdaFoodDataCentralBaseUrl);
         });
+
+        services.AddHttpClient<OpenFoodFactsClient>(client =>
+        {
+            client.BaseAddress = new Uri(OpenFoodFactsBaseUrl);
+        });
+
+        services.AddScoped<IExternalFoodSource, CompositeFoodSource>();
 
         return services;
     }
