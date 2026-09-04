@@ -2,6 +2,7 @@ using FluentAssertions;
 using FoodTrack.Application.Foods;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Foods;
+using FoodTrack.Domain.Users;
 using NSubstitute;
 
 namespace FoodTrack.Tests.Application.Foods;
@@ -11,6 +12,8 @@ public sealed class FoodServiceTest
     private readonly IFoodRepository _foodRepository = Substitute.For<IFoodRepository>();
     private readonly IExternalFoodSource _externalFoodSource = Substitute.For<IExternalFoodSource>();
     private readonly FoodService _sut;
+    private readonly UserId _userId = new("firebase-uid-123");
+    private readonly UserId _otherUserId = new("firebase-uid-456");
 
     public FoodServiceTest()
     {
@@ -25,7 +28,7 @@ public sealed class FoodServiceTest
         _foodRepository.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns((Food?)null);
 
         // Act
-        var result = await _sut.GetByIdAsync(id);
+        var result = await _sut.GetByIdAsync(id, _userId);
 
         // Assert
         result.Should().BeNull();
@@ -52,7 +55,7 @@ public sealed class FoodServiceTest
         _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
 
         // Act
-        var result = await _sut.GetByIdAsync(food.Id);
+        var result = await _sut.GetByIdAsync(food.Id, _userId);
 
         // Assert
         result.Should().NotBeNull();
@@ -68,6 +71,48 @@ public sealed class FoodServiceTest
     }
 
     [Fact]
+    public async Task GetByIdAsync_ReturnsDto_WhenFoodHasNoOwner()
+    {
+        // Arrange
+        var food = CreateChickenBreast();
+        _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
+
+        // Act
+        var result = await _sut.GetByIdAsync(food.Id, _userId);
+
+        // Assert
+        result.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ReturnsDto_WhenCallerOwnsTheFood()
+    {
+        // Arrange
+        var food = CreateCustomFood(ownerId: _userId);
+        _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
+
+        // Act
+        var result = await _sut.GetByIdAsync(food.Id, _userId);
+
+        // Assert
+        result.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ReturnsNull_WhenFoodIsOwnedByAnotherUser()
+    {
+        // Arrange
+        var food = CreateCustomFood(ownerId: _otherUserId);
+        _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
+
+        // Act
+        var result = await _sut.GetByIdAsync(food.Id, _userId);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
     public async Task SearchAsync_ReturnsCachedResults_WithoutCallingExternalSource_WhenCacheHits()
     {
         // Arrange
@@ -75,7 +120,7 @@ public sealed class FoodServiceTest
         _foodRepository.SearchByNameAsync("chicken", Arg.Any<CancellationToken>()).Returns([food]);
 
         // Act
-        var result = await _sut.SearchAsync("chicken");
+        var result = await _sut.SearchAsync(_userId, "chicken");
 
         // Assert
         result.Should().ContainSingle();
@@ -92,7 +137,7 @@ public sealed class FoodServiceTest
         _externalFoodSource.SearchAsync("chicken", Arg.Any<CancellationToken>()).Returns([food]);
 
         // Act
-        var result = await _sut.SearchAsync("chicken");
+        var result = await _sut.SearchAsync(_userId, "chicken");
 
         // Assert
         result.Should().ContainSingle();
@@ -108,11 +153,27 @@ public sealed class FoodServiceTest
         _externalFoodSource.SearchAsync("nonexistent", Arg.Any<CancellationToken>()).Returns([]);
 
         // Act
-        var result = await _sut.SearchAsync("nonexistent");
+        var result = await _sut.SearchAsync(_userId, "nonexistent");
 
         // Assert
         result.Should().BeEmpty();
         await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_ExcludesCachedFoods_OwnedByAnotherUser()
+    {
+        // Arrange
+        var ownFood = CreateCustomFood(ownerId: _userId, name: "My protein shake");
+        var othersFood = CreateCustomFood(ownerId: _otherUserId, name: "Their protein shake");
+        _foodRepository.SearchByNameAsync("protein", Arg.Any<CancellationToken>()).Returns([ownFood, othersFood]);
+
+        // Act
+        var result = await _sut.SearchAsync(_userId, "protein");
+
+        // Assert
+        result.Should().ContainSingle();
+        result[0].Name.Should().Be("My protein shake");
     }
 
     [Theory]
@@ -123,12 +184,35 @@ public sealed class FoodServiceTest
     public async Task SearchAsync_Throws_WhenQueryIsShorterThanMinimumLength(string query)
     {
         // Act
-        var act = async () => await _sut.SearchAsync(query);
+        var act = async () => await _sut.SearchAsync(_userId, query);
 
         // Assert
         await act.Should().ThrowAsync<ArgumentException>();
         await _foodRepository.DidNotReceive().SearchByNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _externalFoodSource.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateCustomAsync_SavesFood_WithSourceCustomAndOwnerSet()
+    {
+        // Arrange
+        var request = new CreateCustomFoodRequest("My whey", 120, 24, 3, 1.5);
+
+        // Act
+        var result = await _sut.CreateCustomAsync(_userId, request);
+
+        // Assert
+        result.Name.Should().Be("My whey");
+        result.Source.Should().Be(nameof(FoodSource.Custom));
+        result.BaseUnitQuantity.Should().Be(100);
+        result.BaseUnitType.Should().Be(nameof(MeasurementUnit.Gram));
+        result.CaloriesPerBaseUnit.Should().Be(120);
+        result.ProteinPerBaseUnit.Should().Be(24);
+        result.CarbsPerBaseUnit.Should().Be(3);
+        result.FatPerBaseUnit.Should().Be(1.5);
+        await _foodRepository.Received(1).SaveAsync(
+            Arg.Is<Food>(food => food.OwnerId == _userId && food.Source == FoodSource.Custom),
+            Arg.Any<CancellationToken>());
     }
 
     private static Food CreateChickenBreast() => Food.Create(
@@ -141,4 +225,16 @@ public sealed class FoodServiceTest
         new Grams(31),
         new Grams(0),
         new Grams(3.6));
+
+    private static Food CreateCustomFood(UserId ownerId, string name = "My whey") => Food.Create(
+        FoodId.NewId(),
+        name,
+        FoodSource.Custom,
+        externalId: null,
+        new BaseUnit(100, MeasurementUnit.Gram),
+        new Kilocalories(120),
+        new Grams(24),
+        new Grams(3),
+        new Grams(1.5),
+        ownerId: ownerId);
 }

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Foods;
+using FoodTrack.Domain.Users;
 
 namespace FoodTrack.Tests.Domain.Foods;
 
@@ -66,6 +67,39 @@ public sealed class FoodTest
         // Assert
         food.ExternalId.Should().BeNull();
         food.Source.Should().Be(FoodSource.Custom);
+    }
+
+    [Fact]
+    public void Create_SetsOwnerId_WhenProvided()
+    {
+        // Arrange
+        var ownerId = new UserId("firebase-uid-123");
+
+        // Act
+        var food = Food.Create(
+            FoodId.NewId(),
+            "My whey",
+            FoodSource.Custom,
+            externalId: null,
+            new BaseUnit(100, MeasurementUnit.Gram),
+            new Kilocalories(120),
+            new Grams(24),
+            new Grams(3),
+            new Grams(1.5),
+            ownerId: ownerId);
+
+        // Assert
+        food.OwnerId.Should().Be(ownerId);
+    }
+
+    [Fact]
+    public void Create_LeavesOwnerIdNull_ByDefault()
+    {
+        // Act
+        var food = CreateValidFood();
+
+        // Assert
+        food.OwnerId.Should().BeNull();
     }
 
     [Fact]

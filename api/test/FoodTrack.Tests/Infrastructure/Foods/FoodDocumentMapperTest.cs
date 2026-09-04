@@ -1,6 +1,7 @@
 using FluentAssertions;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Foods;
+using FoodTrack.Domain.Users;
 using FoodTrack.Infrastructure.Foods;
 
 namespace FoodTrack.Tests.Infrastructure.Foods;
@@ -96,5 +97,48 @@ public sealed class FoodDocumentMapperTest
         // Assert
         roundTrippedFood.ExternalId.Should().BeNull();
         roundTrippedFood.Source.Should().Be(FoodSource.Custom);
+    }
+
+    [Fact]
+    public void OwnerId_RoundTrips_ForCustomFoods_AndStaysNull_ForCachedFoods()
+    {
+        // Arrange
+        var ownerId = new UserId("firebase-uid-123");
+        var customFoodId = FoodId.NewId();
+        var customFood = Food.Create(
+            customFoodId,
+            "My whey",
+            FoodSource.Custom,
+            externalId: null,
+            new BaseUnit(100, MeasurementUnit.Gram),
+            new Kilocalories(120),
+            new Grams(24),
+            new Grams(3),
+            new Grams(1.5),
+            ownerId: ownerId);
+
+        var cachedFoodId = FoodId.NewId();
+        var cachedFood = Food.Create(
+            cachedFoodId,
+            "Chicken Breast",
+            FoodSource.Usda,
+            "171077",
+            new BaseUnit(100, MeasurementUnit.Gram),
+            new Kilocalories(165),
+            new Grams(31),
+            new Grams(0),
+            new Grams(3.6));
+
+        // Act
+        var customFoodDocument = FoodDocumentMapper.ToDocument(customFood);
+        var roundTrippedCustomFood = FoodDocumentMapper.ToDomain(customFoodId, customFoodDocument, []);
+        var cachedFoodDocument = FoodDocumentMapper.ToDocument(cachedFood);
+        var roundTrippedCachedFood = FoodDocumentMapper.ToDomain(cachedFoodId, cachedFoodDocument, []);
+
+        // Assert
+        customFoodDocument.OwnerId.Should().Be("firebase-uid-123");
+        roundTrippedCustomFood.OwnerId.Should().Be(ownerId);
+        cachedFoodDocument.OwnerId.Should().BeNull();
+        roundTrippedCachedFood.OwnerId.Should().BeNull();
     }
 }

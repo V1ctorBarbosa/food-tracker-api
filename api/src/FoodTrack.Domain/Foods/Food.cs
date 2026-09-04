@@ -1,4 +1,5 @@
 using FoodTrack.Domain.Common;
+using FoodTrack.Domain.Users;
 
 namespace FoodTrack.Domain.Foods;
 
@@ -29,6 +30,10 @@ public sealed class Food
 
     public IReadOnlyList<FoodServing> Servings { get; }
 
+    /// <summary>Owner of a personal (<see cref="FoodSource.Custom"/>) food. Null for the shared
+    /// cache of USDA/Open Food Facts results, which every user can see.</summary>
+    public UserId? OwnerId { get; }
+
     private Food(
         FoodId id,
         string name,
@@ -39,7 +44,8 @@ public sealed class Food
         Grams proteinPerBaseUnit,
         Grams carbsPerBaseUnit,
         Grams fatPerBaseUnit,
-        IReadOnlyList<FoodServing> servings)
+        IReadOnlyList<FoodServing> servings,
+        UserId? ownerId)
     {
         Id = id;
         Name = name;
@@ -51,6 +57,7 @@ public sealed class Food
         CarbsPerBaseUnit = carbsPerBaseUnit;
         FatPerBaseUnit = fatPerBaseUnit;
         Servings = servings;
+        OwnerId = ownerId;
     }
 
     public static Food Create(
@@ -63,7 +70,8 @@ public sealed class Food
         Grams proteinPerBaseUnit,
         Grams carbsPerBaseUnit,
         Grams fatPerBaseUnit,
-        IReadOnlyList<FoodServing>? servings = null)
+        IReadOnlyList<FoodServing>? servings = null,
+        UserId? ownerId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -80,6 +88,7 @@ public sealed class Food
             proteinPerBaseUnit,
             carbsPerBaseUnit,
             fatPerBaseUnit,
-            servings ?? []);
+            servings ?? [],
+            ownerId);
     }
 }

@@ -18,6 +18,10 @@ internal sealed class FoodDocument
     [FirestoreProperty]
     public string? ExternalId { get; set; }
 
+    /// <summary>Owner of a personal (Custom) food; absent/null for the shared cache.</summary>
+    [FirestoreProperty]
+    public string? OwnerId { get; set; }
+
     [FirestoreProperty]
     public double BaseUnitQuantity { get; set; }
 

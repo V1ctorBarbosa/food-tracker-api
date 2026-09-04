@@ -1,5 +1,6 @@
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Foods;
+using FoodTrack.Domain.Users;
 
 namespace FoodTrack.Infrastructure.Foods;
 
@@ -20,7 +21,8 @@ internal static class FoodDocumentMapper
         new Grams(document.ProteinPerBaseUnit),
         new Grams(document.CarbsPerBaseUnit),
         new Grams(document.FatPerBaseUnit),
-        servings);
+        servings,
+        document.OwnerId is null ? null : new UserId(document.OwnerId));
 
     public static FoodDocument ToDocument(Food food) => new()
     {
@@ -28,6 +30,7 @@ internal static class FoodDocumentMapper
         NameLower = food.Name.ToLowerInvariant(),
         Source = food.Source.ToString(),
         ExternalId = food.ExternalId,
+        OwnerId = food.OwnerId?.Value,
         BaseUnitQuantity = food.BaseUnit.Quantity,
         BaseUnitType = food.BaseUnit.Unit.ToString(),
         CaloriesPerBaseUnit = food.CaloriesPerBaseUnit.Value,

@@ -1,4 +1,6 @@
+using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Foods;
+using FoodTrack.Domain.Users;
 
 namespace FoodTrack.Application.Foods;
 
@@ -18,10 +20,10 @@ public sealed class FoodService
         _externalFoodSource = externalFoodSource;
     }
 
-    public async Task<FoodDto?> GetByIdAsync(FoodId id, CancellationToken cancellationToken = default)
+    public async Task<FoodDto?> GetByIdAsync(FoodId id, UserId userId, CancellationToken cancellationToken = default)
     {
         var food = await _foodRepository.GetByIdAsync(id, cancellationToken);
-        if (food is null)
+        if (food is null || !IsVisibleTo(food, userId))
         {
             return null;
         }
@@ -32,9 +34,11 @@ public sealed class FoodService
     /// <summary>
     /// Searches the local cache first (docs section 14 flow). On a cache miss, falls back to
     /// the external nutritional source, caches every result it returns, and serves those —
-    /// so the next search for the same food is a cache hit.
+    /// so the next search for the same food is a cache hit. Either way, results are filtered to
+    /// what <paramref name="userId"/> may see: the shared cache plus their own custom foods,
+    /// never another user's.
     /// </summary>
-    public async Task<IReadOnlyList<FoodDto>> SearchAsync(string query, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<FoodDto>> SearchAsync(UserId userId, string query, CancellationToken cancellationToken = default)
     {
         if (query.Trim().Length < MinimumQueryLength)
         {
@@ -44,7 +48,7 @@ public sealed class FoodService
         var cachedFoods = await _foodRepository.SearchByNameAsync(query, cancellationToken);
         if (cachedFoods.Count > 0)
         {
-            return cachedFoods.Select(ToDto).ToList();
+            return FilterVisible(cachedFoods, userId).Select(ToDto).ToList();
         }
 
         var externalFoods = await _externalFoodSource.SearchAsync(query, cancellationToken);
@@ -53,8 +57,31 @@ public sealed class FoodService
             await _foodRepository.SaveAsync(food, cancellationToken);
         }
 
-        return externalFoods.Select(ToDto).ToList();
+        return FilterVisible(externalFoods, userId).Select(ToDto).ToList();
     }
+
+    public async Task<FoodDto> CreateCustomAsync(UserId userId, CreateCustomFoodRequest request, CancellationToken cancellationToken = default)
+    {
+        var food = Food.Create(
+            FoodId.NewId(),
+            request.Name,
+            FoodSource.Custom,
+            externalId: null,
+            new BaseUnit(100, MeasurementUnit.Gram),
+            new Kilocalories(request.Calories),
+            new Grams(request.Protein),
+            new Grams(request.Carbs),
+            new Grams(request.Fat),
+            ownerId: userId);
+
+        await _foodRepository.SaveAsync(food, cancellationToken);
+        return ToDto(food);
+    }
+
+    private static IEnumerable<Food> FilterVisible(IEnumerable<Food> foods, UserId userId) =>
+        foods.Where(food => IsVisibleTo(food, userId));
+
+    private static bool IsVisibleTo(Food food, UserId userId) => food.OwnerId is null || food.OwnerId == userId;
 
     private static FoodDto ToDto(Food food) => new(
         food.Id.Value,
