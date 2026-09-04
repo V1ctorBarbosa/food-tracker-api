@@ -5,10 +5,12 @@ namespace FoodTrack.Application.Foods;
 public sealed class FoodService
 {
     private readonly IFoodRepository _foodRepository;
+    private readonly IExternalFoodSource _externalFoodSource;
 
-    public FoodService(IFoodRepository foodRepository)
+    public FoodService(IFoodRepository foodRepository, IExternalFoodSource externalFoodSource)
     {
         _foodRepository = foodRepository;
+        _externalFoodSource = externalFoodSource;
     }
 
     public async Task<FoodDto?> GetByIdAsync(FoodId id, CancellationToken cancellationToken = default)
@@ -18,14 +20,25 @@ public sealed class FoodService
     }
 
     /// <summary>
-    /// Searches the local cache only. When the external nutritional source is wired in,
-    /// this is where a cache miss will fall back to it and save the result — the endpoint
-    /// and this method's signature do not need to change for that.
+    /// Searches the local cache first (docs section 14 flow). On a cache miss, falls back to
+    /// the external nutritional source, caches every result it returns, and serves those —
+    /// so the next search for the same food is a cache hit.
     /// </summary>
     public async Task<IReadOnlyList<FoodDto>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
-        var foods = await _foodRepository.SearchByNameAsync(query, cancellationToken);
-        return foods.Select(ToDto).ToList();
+        var cachedFoods = await _foodRepository.SearchByNameAsync(query, cancellationToken);
+        if (cachedFoods.Count > 0)
+        {
+            return cachedFoods.Select(ToDto).ToList();
+        }
+
+        var externalFoods = await _externalFoodSource.SearchAsync(query, cancellationToken);
+        foreach (var food in externalFoods)
+        {
+            await _foodRepository.SaveAsync(food, cancellationToken);
+        }
+
+        return externalFoods.Select(ToDto).ToList();
     }
 
     private static FoodDto ToDto(Food food) => new(

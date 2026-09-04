@@ -14,6 +14,8 @@ namespace FoodTrack.Infrastructure;
 
 public static class DependencyInjection
 {
+    private const string UsdaFoodDataCentralBaseUrl = "https://api.nal.usda.gov/fdc/v1/";
+
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddFirebaseAdmin(configuration);
@@ -21,6 +23,17 @@ public static class DependencyInjection
         services.AddScoped<IWeightEntryRepository, FirestoreWeightEntryRepository>();
         services.AddScoped<IWaterEntryRepository, FirestoreWaterEntryRepository>();
         services.AddScoped<IFoodRepository, FirestoreFoodRepository>();
+
+        services
+            .AddOptions<UsdaFoodDataCentralOptions>()
+            .Bind(configuration.GetSection(UsdaFoodDataCentralOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddHttpClient<IExternalFoodSource, UsdaFoodDataCentralClient>(client =>
+        {
+            client.BaseAddress = new Uri(UsdaFoodDataCentralBaseUrl);
+        });
 
         return services;
     }

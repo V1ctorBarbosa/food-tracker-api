@@ -9,11 +9,12 @@ namespace FoodTrack.Tests.Application.Foods;
 public sealed class FoodServiceTest
 {
     private readonly IFoodRepository _foodRepository = Substitute.For<IFoodRepository>();
+    private readonly IExternalFoodSource _externalFoodSource = Substitute.For<IExternalFoodSource>();
     private readonly FoodService _sut;
 
     public FoodServiceTest()
     {
-        _sut = new FoodService(_foodRepository);
+        _sut = new FoodService(_foodRepository, _externalFoodSource);
     }
 
     [Fact]
@@ -67,20 +68,10 @@ public sealed class FoodServiceTest
     }
 
     [Fact]
-    public async Task SearchAsync_ReturnsMappedDtos_FromRepository()
+    public async Task SearchAsync_ReturnsCachedResults_WithoutCallingExternalSource_WhenCacheHits()
     {
         // Arrange
-        var food = Food.Create(
-            FoodId.NewId(),
-            "Chicken breast",
-            FoodSource.Usda,
-            "171077",
-            new BaseUnit(100, MeasurementUnit.Gram),
-            new Kilocalories(165),
-            new Grams(31),
-            new Grams(0),
-            new Grams(3.6));
-
+        var food = CreateChickenBreast();
         _foodRepository.SearchByNameAsync("chicken", Arg.Any<CancellationToken>()).Returns([food]);
 
         // Act
@@ -89,5 +80,49 @@ public sealed class FoodServiceTest
         // Assert
         result.Should().ContainSingle();
         result[0].Name.Should().Be("Chicken breast");
+        await _externalFoodSource.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task SearchAsync_FallsBackToExternalSource_AndCachesResults_WhenCacheMisses()
+    {
+        // Arrange
+        var food = CreateChickenBreast();
+        _foodRepository.SearchByNameAsync("chicken", Arg.Any<CancellationToken>()).Returns([]);
+        _externalFoodSource.SearchAsync("chicken", Arg.Any<CancellationToken>()).Returns([food]);
+
+        // Act
+        var result = await _sut.SearchAsync("chicken");
+
+        // Assert
+        result.Should().ContainSingle();
+        result[0].Name.Should().Be("Chicken breast");
+        await _foodRepository.Received(1).SaveAsync(food, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_ReturnsEmpty_WhenBothCacheAndExternalSourceMiss()
+    {
+        // Arrange
+        _foodRepository.SearchByNameAsync("nonexistent", Arg.Any<CancellationToken>()).Returns([]);
+        _externalFoodSource.SearchAsync("nonexistent", Arg.Any<CancellationToken>()).Returns([]);
+
+        // Act
+        var result = await _sut.SearchAsync("nonexistent");
+
+        // Assert
+        result.Should().BeEmpty();
+        await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
+    private static Food CreateChickenBreast() => Food.Create(
+        FoodId.NewId(),
+        "Chicken breast",
+        FoodSource.Usda,
+        "171077",
+        new BaseUnit(100, MeasurementUnit.Gram),
+        new Kilocalories(165),
+        new Grams(31),
+        new Grams(0),
+        new Grams(3.6));
 }
