@@ -170,7 +170,7 @@
               "path": ["foods", "search"],
               "query": [{ "key": "q", "value": "chicken" }]
             },
-            "description": "Cache-first: searches Firestore by name prefix, falls back to USDA FoodData Central on a miss and caches every result. First call for a new query is slower (external API round trip); repeat calls are cache hits."
+            "description": "Cache-first: searches Firestore by name prefix, falls back to USDA FoodData Central on a miss and caches every result. First call for a new query is slower (external API round trip); repeat calls are cache hits. q must be at least 3 characters (400 otherwise) -- this guards the external API from a search-as-you-type client firing one request per keystroke; USDA is English-only, so search in English (e.g. \"chicken breast\", not \"peito de frango\") until a translation layer exists."
           }
         },
         {

@@ -115,6 +115,22 @@ public sealed class FoodServiceTest
         await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("a")]
+    [InlineData("ab")]
+    public async Task SearchAsync_Throws_WhenQueryIsShorterThanMinimumLength(string query)
+    {
+        // Act
+        var act = async () => await _sut.SearchAsync(query);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _foodRepository.DidNotReceive().SearchByNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _externalFoodSource.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     private static Food CreateChickenBreast() => Food.Create(
         FoodId.NewId(),
         "Chicken breast",

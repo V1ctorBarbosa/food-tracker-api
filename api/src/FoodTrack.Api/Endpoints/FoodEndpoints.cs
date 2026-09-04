@@ -31,8 +31,15 @@ public static class FoodEndpoints
 
     private static async Task<IResult> SearchAsync(string q, FoodService foodService, CancellationToken cancellationToken)
     {
-        var foods = await foodService.SearchAsync(q, cancellationToken);
-        return Results.Ok(foods);
+        try
+        {
+            var foods = await foodService.SearchAsync(q, cancellationToken);
+            return Results.Ok(foods);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new { error = ex.Message });
+        }
     }
 
     private static class RouteNames

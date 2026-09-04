@@ -4,6 +4,11 @@ namespace FoodTrack.Application.Foods;
 
 public sealed class FoodService
 {
+    // Guards against a search-as-you-type frontend firing one request per keystroke with no
+    // debounce -- "c", "ch", "chi" would each be a cache miss and hit the external source.
+    // This is a backend safety net regardless of client; the real fix is debouncing client-side.
+    private const int MinimumQueryLength = 3;
+
     private readonly IFoodRepository _foodRepository;
     private readonly IExternalFoodSource _externalFoodSource;
 
@@ -31,6 +36,11 @@ public sealed class FoodService
     /// </summary>
     public async Task<IReadOnlyList<FoodDto>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
+        if (query.Trim().Length < MinimumQueryLength)
+        {
+            throw new ArgumentException($"Query must be at least {MinimumQueryLength} characters.", nameof(query));
+        }
+
         var cachedFoods = await _foodRepository.SearchByNameAsync(query, cancellationToken);
         if (cachedFoods.Count > 0)
         {
