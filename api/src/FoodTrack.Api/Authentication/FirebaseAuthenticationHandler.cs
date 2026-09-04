@@ -2,8 +2,10 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
+using FoodTrack.Api.ErrorHandling;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using AuthErrorCode = FoodTrack.Api.ErrorHandling.AuthErrorCode;
 
 namespace FoodTrack.Api.Authentication;
 
@@ -19,6 +21,8 @@ public sealed class FirebaseAuthenticationHandler : AuthenticationHandler<Authen
     private const string BearerPrefix = "Bearer ";
 
     private readonly FirebaseAuth _firebaseAuth;
+
+    private string _authErrorCode = AuthErrorCode.MissingCredentials;
 
     public FirebaseAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -68,7 +72,24 @@ public sealed class FirebaseAuthenticationHandler : AuthenticationHandler<Authen
         catch (FirebaseAuthException ex)
         {
             Logger.LogWarning(ex, "Firebase ID token verification failed.");
+            _authErrorCode = FirebaseAuthErrorCodeMapper.Map(ex.AuthErrorCode);
             return AuthenticateResult.Fail("Invalid or expired token.");
         }
     }
+
+    protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+    {
+        Response.StatusCode = StatusCodes.Status401Unauthorized;
+        Response.ContentType = "application/json";
+
+        return Response.WriteAsJsonAsync(new ApiErrorResponse(_authErrorCode, BuildMessage(_authErrorCode)));
+    }
+
+    private static string BuildMessage(string authErrorCode) => authErrorCode switch
+    {
+        AuthErrorCode.TokenExpired => "The session token has expired.",
+        AuthErrorCode.TokenRevoked => "The session token was revoked.",
+        AuthErrorCode.TokenInvalid => "The provided credentials are invalid.",
+        _ => "No credentials were provided.",
+    };
 }

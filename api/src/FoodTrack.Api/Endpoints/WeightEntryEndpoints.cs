@@ -39,18 +39,11 @@ public static class WeightEntryEndpoints
         WeightEntryService weightEntryService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var userId = user.GetAuthenticatedUserId();
-            var entry = await weightEntryService.CreateAsync(userId, request, cancellationToken);
+        var userId = user.GetAuthenticatedUserId();
+        var entry = await weightEntryService.CreateAsync(userId, request, cancellationToken);
 
-            var createdEntryLocation = $"{RoutePrefix}/{entry.Id}";
-            return Results.Created(createdEntryLocation, entry);
-        }
-        catch (ArgumentException ex)
-        {
-            return Results.BadRequest(new { error = ex.Message });
-        }
+        var createdEntryLocation = $"{RoutePrefix}/{entry.Id}";
+        return Results.Created(createdEntryLocation, entry);
     }
 
     private static async Task<IResult> UpdateAsync(
@@ -60,22 +53,15 @@ public static class WeightEntryEndpoints
         WeightEntryService weightEntryService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var userId = user.GetAuthenticatedUserId();
-            var entry = await weightEntryService.UpdateAsync(userId, new WeightEntryId(id), request, cancellationToken);
+        var userId = user.GetAuthenticatedUserId();
+        var entry = await weightEntryService.UpdateAsync(userId, new WeightEntryId(id), request, cancellationToken);
 
-            if (entry is null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(entry);
-        }
-        catch (ArgumentException ex)
+        if (entry is null)
         {
-            return Results.BadRequest(new { error = ex.Message });
+            return Results.NotFound();
         }
+
+        return Results.Ok(entry);
     }
 
     private static async Task<IResult> DeleteAsync(

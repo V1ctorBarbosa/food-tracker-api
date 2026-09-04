@@ -40,17 +40,10 @@ public static class ProfileEndpoints
         UserProfileService profileService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var userId = user.GetAuthenticatedUserId();
-            var profile = await profileService.UpsertProfileAsync(userId, request, cancellationToken);
+        var userId = user.GetAuthenticatedUserId();
+        var profile = await profileService.UpsertProfileAsync(userId, request, cancellationToken);
 
-            return Results.Ok(profile);
-        }
-        catch (ArgumentException ex)
-        {
-            return Results.BadRequest(new { error = ex.Message });
-        }
+        return Results.Ok(profile);
     }
 
     private static class RouteNames

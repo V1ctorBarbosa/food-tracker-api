@@ -57,18 +57,11 @@ public static class MealEndpoints
         MealService mealService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var userId = user.GetAuthenticatedUserId();
-            var meal = await mealService.CreateAsync(userId, request, cancellationToken);
+        var userId = user.GetAuthenticatedUserId();
+        var meal = await mealService.CreateAsync(userId, request, cancellationToken);
 
-            var createdMealLocation = $"{RoutePrefix}/{meal.Id}";
-            return Results.Created(createdMealLocation, meal);
-        }
-        catch (ArgumentException ex)
-        {
-            return Results.BadRequest(new { error = ex.Message });
-        }
+        var createdMealLocation = $"{RoutePrefix}/{meal.Id}";
+        return Results.Created(createdMealLocation, meal);
     }
 
     private static async Task<IResult> UpdateAsync(
@@ -78,22 +71,15 @@ public static class MealEndpoints
         MealService mealService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var userId = user.GetAuthenticatedUserId();
-            var meal = await mealService.UpdateAsync(userId, new MealId(id), request, cancellationToken);
+        var userId = user.GetAuthenticatedUserId();
+        var meal = await mealService.UpdateAsync(userId, new MealId(id), request, cancellationToken);
 
-            if (meal is null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(meal);
-        }
-        catch (ArgumentException ex)
+        if (meal is null)
         {
-            return Results.BadRequest(new { error = ex.Message });
+            return Results.NotFound();
         }
+
+        return Results.Ok(meal);
     }
 
     private static async Task<IResult> DeleteAsync(

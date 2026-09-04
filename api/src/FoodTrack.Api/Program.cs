@@ -1,5 +1,6 @@
 using FoodTrack.Api.Authentication;
 using FoodTrack.Api.Endpoints;
+using FoodTrack.Api.ErrorHandling;
 using FoodTrack.Application;
 using FoodTrack.Infrastructure;
 using Google.Cloud.Firestore;
@@ -29,6 +30,8 @@ builder.Services
     .AddAuthentication(FirebaseAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>(FirebaseAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddAuthorization();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
@@ -39,6 +42,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
 
