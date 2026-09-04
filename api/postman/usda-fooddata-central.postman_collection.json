@@ -1,0 +1,42 @@
+{
+  "info": {
+    "_postman_id": "f0a1c1d0-9b3a-4b2a-9c1e-usda-fooddata-central",
+    "name": "USDA FoodData Central",
+    "description": "The USDA endpoints FoodTrack's UsdaFoodDataCentralClient (Infrastructure/Foods) calls or is likely to call next. Requires an environment with `baseUrl` and `apiKey` set -- see usda-fooddata-central.postman_environment.json. Never commit a real apiKey value; keep it in the environment file, which is gitignored.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Search Foods",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/foods/search?query={{query}}&pageSize=10&api_key={{apiKey}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["foods", "search"],
+          "query": [
+            { "key": "query", "value": "{{query}}" },
+            { "key": "pageSize", "value": "10" },
+            { "key": "api_key", "value": "{{apiKey}}" }
+          ]
+        },
+        "description": "Mirrors UsdaFoodDataCentralClient.SearchAsync exactly (same path and query params). Each item in the response's \"foods\" array carries its nutrients in \"foodNutrients\" -- verified against a live response that the fields are `nutrientNumber` and `value` (the published OpenAPI spec says `number`/`amount`, which the live API does not actually return). FoodTrack matches on nutrientNumber: 208 = Energy (kcal), 203 = Protein, 204 = Fat, 205 = Carbohydrate; a result missing any of the four is skipped."
+      }
+    },
+    {
+      "name": "Get Food by FDC ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/food/{{fdcId}}?api_key={{apiKey}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["food", "{{fdcId}}"],
+          "query": [{ "key": "api_key", "value": "{{apiKey}}" }]
+        },
+        "description": "Not called by FoodTrack yet -- kept here for inspecting one food's full detail. Its foodNutrients shape differs from the search endpoint: each entry has a nested \"nutrient\": {id, number, name, unitName} plus a sibling \"amount\", instead of search's flat nutrientNumber/value."
+      }
+    }
+  ]
+}

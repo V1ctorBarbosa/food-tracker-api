@@ -10,6 +10,10 @@ api/**/obj/
 .env.*
 !.env.example
 
+# Postman environments hold API keys once filled in via the Postman UI — the collection
+# itself (endpoints, no secrets) is fine to commit; environments are not.
+**/*.postman_environment.json
+
 # Node / Expo / React Native (for the future mobile/ app)
 mobile/node_modules/
 mobile/.expo/
