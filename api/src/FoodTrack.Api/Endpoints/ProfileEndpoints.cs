@@ -26,8 +26,12 @@ public static class ProfileEndpoints
         var userId = user.GetAuthenticatedUserId();
         var profile = await profileService.GetProfileAsync(userId, cancellationToken);
 
-        var profileResponse = profile is null ? Results.NotFound() : Results.Ok(profile);
-        return profileResponse;
+        if (profile is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Ok(profile);
     }
 
     private static async Task<IResult> UpsertProfileAsync(

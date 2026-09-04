@@ -65,8 +65,12 @@ public static class WeightEntryEndpoints
             var userId = user.GetAuthenticatedUserId();
             var entry = await weightEntryService.UpdateAsync(userId, new WeightEntryId(id), request, cancellationToken);
 
-            var updateResponse = entry is null ? Results.NotFound() : Results.Ok(entry);
-            return updateResponse;
+            if (entry is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(entry);
         }
         catch (ArgumentException ex)
         {
@@ -83,8 +87,12 @@ public static class WeightEntryEndpoints
         var userId = user.GetAuthenticatedUserId();
         var wasDeleted = await weightEntryService.DeleteAsync(userId, new WeightEntryId(id), cancellationToken);
 
-        var deleteResponse = wasDeleted ? Results.NoContent() : Results.NotFound();
-        return deleteResponse;
+        if (!wasDeleted)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.NoContent();
     }
 
     private static class RouteNames

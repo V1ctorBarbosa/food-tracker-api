@@ -15,7 +15,12 @@ public sealed class UserProfileService
     public async Task<UserProfileDto?> GetProfileAsync(UserId userId, CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
-        return user is null ? null : ToDto(user);
+        if (user is null)
+        {
+            return null;
+        }
+
+        return ToDto(user);
     }
 
     public async Task<UserProfileDto> UpsertProfileAsync(
@@ -23,6 +28,12 @@ public sealed class UserProfileService
         UpsertUserProfileRequest request,
         CancellationToken cancellationToken = default)
     {
+        Kilograms? targetWeight = null;
+        if (request.TargetWeightKilograms is { } weight)
+        {
+            targetWeight = new Kilograms(weight);
+        }
+
         var user = User.Create(
             userId,
             request.Name,
@@ -32,7 +43,7 @@ public sealed class UserProfileService
             Enum.Parse<ActivityLevel>(request.ActivityLevel, ignoreCase: true),
             new Kilocalories(request.DailyCalorieTarget),
             new Kilocalories(request.DesiredCalorieDeficit),
-            request.TargetWeightKilograms is { } weight ? new Kilograms(weight) : null);
+            targetWeight);
 
         await _userRepository.SaveAsync(user, cancellationToken);
         return ToDto(user);

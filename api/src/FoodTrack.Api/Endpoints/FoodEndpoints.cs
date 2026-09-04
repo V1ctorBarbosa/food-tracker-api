@@ -21,8 +21,12 @@ public static class FoodEndpoints
     {
         var food = await foodService.GetByIdAsync(new FoodId(id), cancellationToken);
 
-        var getByIdResponse = food is null ? Results.NotFound() : Results.Ok(food);
-        return getByIdResponse;
+        if (food is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Ok(food);
     }
 
     private static async Task<IResult> SearchAsync(string q, FoodService foodService, CancellationToken cancellationToken)

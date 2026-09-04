@@ -65,8 +65,12 @@ public static class WaterEntryEndpoints
             var userId = user.GetAuthenticatedUserId();
             var entry = await waterEntryService.UpdateAsync(userId, new WaterEntryId(id), request, cancellationToken);
 
-            var updateResponse = entry is null ? Results.NotFound() : Results.Ok(entry);
-            return updateResponse;
+            if (entry is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(entry);
         }
         catch (ArgumentException ex)
         {
@@ -83,8 +87,12 @@ public static class WaterEntryEndpoints
         var userId = user.GetAuthenticatedUserId();
         var wasDeleted = await waterEntryService.DeleteAsync(userId, new WaterEntryId(id), cancellationToken);
 
-        var deleteResponse = wasDeleted ? Results.NoContent() : Results.NotFound();
-        return deleteResponse;
+        if (!wasDeleted)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.NoContent();
     }
 
     private static class RouteNames

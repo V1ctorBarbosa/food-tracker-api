@@ -16,7 +16,12 @@ public sealed class FoodService
     public async Task<FoodDto?> GetByIdAsync(FoodId id, CancellationToken cancellationToken = default)
     {
         var food = await _foodRepository.GetByIdAsync(id, cancellationToken);
-        return food is null ? null : ToDto(food);
+        if (food is null)
+        {
+            return null;
+        }
+
+        return ToDto(food);
     }
 
     /// <summary>

@@ -10,16 +10,25 @@ namespace FoodTrack.Infrastructure.Users;
 /// </summary>
 internal static class UserDocumentMapper
 {
-    public static User ToDomain(UserId id, UserDocument document) => User.Create(
-        id,
-        document.Name,
-        new Age(document.Age),
-        new Centimeters(document.HeightCentimeters),
-        Enum.Parse<Sex>(document.Sex),
-        Enum.Parse<ActivityLevel>(document.ActivityLevel),
-        new Kilocalories(document.DailyCalorieTarget),
-        new Kilocalories(document.DesiredCalorieDeficit),
-        document.TargetWeightKilograms is { } weight ? new Kilograms(weight) : null);
+    public static User ToDomain(UserId id, UserDocument document)
+    {
+        Kilograms? targetWeight = null;
+        if (document.TargetWeightKilograms is { } weight)
+        {
+            targetWeight = new Kilograms(weight);
+        }
+
+        return User.Create(
+            id,
+            document.Name,
+            new Age(document.Age),
+            new Centimeters(document.HeightCentimeters),
+            Enum.Parse<Sex>(document.Sex),
+            Enum.Parse<ActivityLevel>(document.ActivityLevel),
+            new Kilocalories(document.DailyCalorieTarget),
+            new Kilocalories(document.DesiredCalorieDeficit),
+            targetWeight);
+    }
 
     public static UserDocument ToDocument(User user) => new()
     {
