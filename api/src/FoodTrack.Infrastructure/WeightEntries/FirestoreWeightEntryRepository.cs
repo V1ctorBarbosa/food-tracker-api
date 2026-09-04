@@ -39,19 +39,19 @@ public sealed class FirestoreWeightEntryRepository : IWeightEntryRepository
         DateOnly to,
         CancellationToken cancellationToken = default)
     {
-        var fromUtc = DateTime.SpecifyKind(from.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-        var toUtc = DateTime.SpecifyKind(to.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var fromUtc = new DateTimeOffset(DateTime.SpecifyKind(from.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
+        var toExclusiveUtc = new DateTimeOffset(DateTime.SpecifyKind(to.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
 
         var query = _firestoreDb.Collection(CollectionName)
             .WhereEqualTo(nameof(WeightEntryDocument.UserId), userId.Value)
-            .WhereGreaterThanOrEqualTo(nameof(WeightEntryDocument.Date), fromUtc)
-            .WhereLessThanOrEqualTo(nameof(WeightEntryDocument.Date), toUtc);
+            .WhereGreaterThanOrEqualTo(nameof(WeightEntryDocument.LoggedAt), fromUtc)
+            .WhereLessThan(nameof(WeightEntryDocument.LoggedAt), toExclusiveUtc);
 
         var snapshot = await query.GetSnapshotAsync(cancellationToken);
 
         return snapshot.Documents
             .Select(doc => WeightEntryDocumentMapper.ToDomain(new WeightEntryId(doc.Id), doc.ConvertTo<WeightEntryDocument>()))
-            .OrderBy(entry => entry.Date)
+            .OrderBy(entry => entry.LoggedAt)
             .ToList();
     }
 
@@ -59,7 +59,7 @@ public sealed class FirestoreWeightEntryRepository : IWeightEntryRepository
     {
         var query = _firestoreDb.Collection(CollectionName)
             .WhereEqualTo(nameof(WeightEntryDocument.UserId), userId.Value)
-            .OrderByDescending(nameof(WeightEntryDocument.Date))
+            .OrderByDescending(nameof(WeightEntryDocument.LoggedAt))
             .Limit(1);
 
         var snapshot = await query.GetSnapshotAsync(cancellationToken);

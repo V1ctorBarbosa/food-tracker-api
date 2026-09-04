@@ -2,7 +2,7 @@ namespace FoodTrack.Application.Meals;
 
 public sealed record MealDto(
     string Id,
-    DateOnly Date,
+    DateTimeOffset LoggedAt,
     string MealType,
     int TotalCalories,
     double TotalProtein,

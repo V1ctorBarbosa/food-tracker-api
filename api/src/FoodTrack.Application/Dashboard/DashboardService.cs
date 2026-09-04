@@ -45,7 +45,7 @@ public sealed class DashboardService
         var mostRecentWeightEntry = await _weightEntryRepository.GetMostRecentAsync(userId, cancellationToken);
 
         var weightHistory = weightEntries
-            .Select(entry => new WeightHistoryEntryDto(entry.Date, entry.Weight.Value))
+            .Select(entry => new WeightHistoryEntryDto(DateOnly.FromDateTime(entry.LoggedAt.UtcDateTime), entry.Weight.Value))
             .ToList();
 
         return new DashboardDto(
@@ -67,7 +67,7 @@ public sealed class DashboardService
         IReadOnlyList<WaterEntry> waterEntries)
     {
         var mealTotalsByDate = meals
-            .GroupBy(meal => meal.Date)
+            .GroupBy(meal => DateOnly.FromDateTime(meal.LoggedAt.UtcDateTime))
             .ToDictionary(
                 group => group.Key,
                 group => (

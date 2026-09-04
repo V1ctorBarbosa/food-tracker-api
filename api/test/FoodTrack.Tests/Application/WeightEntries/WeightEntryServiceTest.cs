@@ -24,7 +24,8 @@ public sealed class WeightEntryServiceTest
         // Arrange
         var from = new DateOnly(2026, 9, 1);
         var to = new DateOnly(2026, 9, 7);
-        var entry = WeightEntry.Create(WeightEntryId.NewId(), _userId, from, new Kilograms(87.6));
+        var loggedAt = new DateTimeOffset(2026, 9, 1, 7, 10, 0, TimeSpan.Zero);
+        var entry = WeightEntry.Create(WeightEntryId.NewId(), _userId, loggedAt, new Kilograms(87.6));
 
         _weightEntryRepository.ListByUserAsync(_userId, from, to, Arg.Any<CancellationToken>())
             .Returns([entry]);
@@ -42,17 +43,16 @@ public sealed class WeightEntryServiceTest
     public async Task CreateAsync_SavesEntry_AndReturnsDto()
     {
         // Arrange
-        var date = new DateOnly(2026, 9, 3);
-        var request = new CreateWeightEntryRequest(date, 87.6);
+        var request = new CreateWeightEntryRequest(87.6);
 
         // Act
         var result = await _sut.CreateAsync(_userId, request);
 
-        // Assert
-        result.Date.Should().Be(date);
+        // Assert -- LoggedAt is assigned server-side (DateTimeOffset.UtcNow), not client-supplied.
+        result.LoggedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
         result.WeightKilograms.Should().Be(87.6);
         await _weightEntryRepository.Received(1).AddAsync(
-            Arg.Is<WeightEntry>(entry => entry.UserId == _userId && entry.Date == date),
+            Arg.Is<WeightEntry>(entry => entry.UserId == _userId),
             Arg.Any<CancellationToken>());
     }
 
@@ -64,7 +64,7 @@ public sealed class WeightEntryServiceTest
         _weightEntryRepository.GetByIdAsync(id, _userId, Arg.Any<CancellationToken>()).Returns((WeightEntry?)null);
 
         // Act
-        var result = await _sut.UpdateAsync(_userId, id, new UpdateWeightEntryRequest(new DateOnly(2026, 9, 3), 87));
+        var result = await _sut.UpdateAsync(_userId, id, new UpdateWeightEntryRequest(87));
 
         // Assert
         result.Should().BeNull();
@@ -76,19 +76,21 @@ public sealed class WeightEntryServiceTest
     {
         // Arrange
         var id = WeightEntryId.NewId();
-        var existing = WeightEntry.Create(id, _userId, new DateOnly(2026, 9, 1), new Kilograms(88));
+        var loggedAt = new DateTimeOffset(2026, 9, 1, 7, 10, 0, TimeSpan.Zero);
+        var existing = WeightEntry.Create(id, _userId, loggedAt, new Kilograms(88));
         _weightEntryRepository.GetByIdAsync(id, _userId, Arg.Any<CancellationToken>()).Returns(existing);
 
-        var request = new UpdateWeightEntryRequest(new DateOnly(2026, 9, 3), 87.6);
+        var request = new UpdateWeightEntryRequest(87.6);
 
         // Act
         var result = await _sut.UpdateAsync(_userId, id, request);
 
-        // Assert
+        // Assert -- editing preserves the original LoggedAt, it doesn't reset to the edit time.
         result.Should().NotBeNull();
         result!.WeightKilograms.Should().Be(87.6);
+        result.LoggedAt.Should().Be(loggedAt);
         await _weightEntryRepository.Received(1).UpdateAsync(
-            Arg.Is<WeightEntry>(entry => entry.Id == id && entry.Weight.Value == 87.6),
+            Arg.Is<WeightEntry>(entry => entry.Id == id && entry.Weight.Value == 87.6 && entry.LoggedAt == loggedAt),
             Arg.Any<CancellationToken>());
     }
 
@@ -112,7 +114,8 @@ public sealed class WeightEntryServiceTest
     {
         // Arrange
         var id = WeightEntryId.NewId();
-        var existing = WeightEntry.Create(id, _userId, new DateOnly(2026, 9, 1), new Kilograms(88));
+        var loggedAt = new DateTimeOffset(2026, 9, 1, 7, 10, 0, TimeSpan.Zero);
+        var existing = WeightEntry.Create(id, _userId, loggedAt, new Kilograms(88));
         _weightEntryRepository.GetByIdAsync(id, _userId, Arg.Any<CancellationToken>()).Returns(existing);
 
         // Act

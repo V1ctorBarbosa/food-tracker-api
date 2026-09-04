@@ -28,7 +28,7 @@ public sealed class WeightEntryService
         CreateWeightEntryRequest request,
         CancellationToken cancellationToken = default)
     {
-        var entry = WeightEntry.Create(WeightEntryId.NewId(), userId, request.Date, new Kilograms(request.WeightKilograms));
+        var entry = WeightEntry.Create(WeightEntryId.NewId(), userId, DateTimeOffset.UtcNow, new Kilograms(request.WeightKilograms));
         await _weightEntryRepository.AddAsync(entry, cancellationToken);
         return ToDto(entry);
     }
@@ -46,7 +46,7 @@ public sealed class WeightEntryService
             return null;
         }
 
-        var updated = WeightEntry.Create(id, userId, request.Date, new Kilograms(request.WeightKilograms));
+        var updated = WeightEntry.Create(id, userId, existing.LoggedAt, new Kilograms(request.WeightKilograms));
         await _weightEntryRepository.UpdateAsync(updated, cancellationToken);
         return ToDto(updated);
     }
@@ -64,5 +64,5 @@ public sealed class WeightEntryService
         return true;
     }
 
-    private static WeightEntryDto ToDto(WeightEntry entry) => new(entry.Id.Value, entry.Date, entry.Weight.Value);
+    private static WeightEntryDto ToDto(WeightEntry entry) => new(entry.Id.Value, entry.LoggedAt, entry.Weight.Value);
 }

@@ -42,7 +42,7 @@ public sealed class MealService
     {
         var items = await ResolveItemsAsync(request.Items, cancellationToken);
         var mealType = Enum.Parse<MealType>(request.MealType, ignoreCase: true);
-        var meal = Meal.Create(MealId.NewId(), userId, request.Date, mealType, items);
+        var meal = Meal.Create(MealId.NewId(), userId, DateTimeOffset.UtcNow, mealType, items);
 
         await _mealRepository.AddAsync(meal, cancellationToken);
         return ToDto(meal);
@@ -63,7 +63,7 @@ public sealed class MealService
 
         var items = await ResolveItemsAsync(request.Items, cancellationToken);
         var mealType = Enum.Parse<MealType>(request.MealType, ignoreCase: true);
-        var meal = Meal.Create(id, userId, request.Date, mealType, items);
+        var meal = Meal.Create(id, userId, existing.LoggedAt, mealType, items);
 
         await _mealRepository.UpdateAsync(meal, cancellationToken);
         return ToDto(meal);
@@ -165,7 +165,7 @@ public sealed class MealService
 
     private static MealDto ToDto(Meal meal) => new(
         meal.Id.Value,
-        meal.Date,
+        meal.LoggedAt,
         meal.MealType.ToString(),
         meal.TotalCalories.Value,
         meal.TotalProtein.Value,

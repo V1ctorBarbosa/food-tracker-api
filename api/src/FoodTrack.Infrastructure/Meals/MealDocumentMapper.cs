@@ -13,14 +13,14 @@ internal static class MealDocumentMapper
     public static Meal ToDomain(MealId id, UserId userId, MealDocument document, IReadOnlyList<MealItem> items) => Meal.Create(
         id,
         userId,
-        DateOnly.FromDateTime(document.Date),
+        document.LoggedAt,
         Enum.Parse<MealType>(document.MealType),
         items);
 
     public static MealDocument ToDocument(Meal meal) => new()
     {
         UserId = meal.UserId.Value,
-        Date = DateTime.SpecifyKind(meal.Date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc),
+        LoggedAt = meal.LoggedAt,
         MealType = meal.MealType.ToString(),
     };
 }

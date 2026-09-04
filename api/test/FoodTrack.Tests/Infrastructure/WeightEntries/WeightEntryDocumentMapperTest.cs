@@ -12,10 +12,11 @@ public sealed class WeightEntryDocumentMapperTest
     public void ToDocument_MapsAllFields_FromWeightEntry()
     {
         // Arrange
+        var loggedAt = new DateTimeOffset(2026, 9, 3, 7, 10, 0, TimeSpan.Zero);
         var entry = WeightEntry.Create(
             WeightEntryId.NewId(),
             new UserId("firebase-uid-123"),
-            new DateOnly(2026, 9, 3),
+            loggedAt,
             new Kilograms(87.6));
 
         // Act
@@ -23,7 +24,7 @@ public sealed class WeightEntryDocumentMapperTest
 
         // Assert
         document.UserId.Should().Be("firebase-uid-123");
-        document.Date.Should().Be(new DateTime(2026, 9, 3, 0, 0, 0, DateTimeKind.Utc));
+        document.LoggedAt.Should().Be(loggedAt);
         document.WeightKilograms.Should().Be(87.6);
     }
 
@@ -32,10 +33,11 @@ public sealed class WeightEntryDocumentMapperTest
     {
         // Arrange
         var id = WeightEntryId.NewId();
+        var loggedAt = new DateTimeOffset(2026, 9, 3, 7, 10, 0, TimeSpan.Zero);
         var originalEntry = WeightEntry.Create(
             id,
             new UserId("firebase-uid-123"),
-            new DateOnly(2026, 9, 3),
+            loggedAt,
             new Kilograms(87.6));
 
         // Act
@@ -45,7 +47,7 @@ public sealed class WeightEntryDocumentMapperTest
         // Assert
         roundTrippedEntry.Id.Should().Be(id);
         roundTrippedEntry.UserId.Should().Be(originalEntry.UserId);
-        roundTrippedEntry.Date.Should().Be(originalEntry.Date);
+        roundTrippedEntry.LoggedAt.Should().Be(originalEntry.LoggedAt);
         roundTrippedEntry.Weight.Should().Be(originalEntry.Weight);
     }
 }

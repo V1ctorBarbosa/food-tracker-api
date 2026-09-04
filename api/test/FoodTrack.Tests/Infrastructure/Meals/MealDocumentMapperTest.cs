@@ -14,10 +14,11 @@ public sealed class MealDocumentMapperTest
     {
         // Arrange
         var userId = new UserId("firebase-uid-123");
+        var loggedAt = new DateTimeOffset(2026, 9, 3, 12, 40, 0, TimeSpan.Zero);
         var meal = Meal.Create(
             MealId.NewId(),
             userId,
-            new DateOnly(2026, 9, 3),
+            loggedAt,
             MealType.Lunch,
             [CreateItem()]);
 
@@ -26,7 +27,7 @@ public sealed class MealDocumentMapperTest
 
         // Assert
         document.UserId.Should().Be(userId.Value);
-        document.Date.Should().Be(new DateTime(2026, 9, 3, 0, 0, 0, DateTimeKind.Utc));
+        document.LoggedAt.Should().Be(loggedAt);
         document.MealType.Should().Be(nameof(MealType.Lunch));
     }
 
@@ -37,7 +38,8 @@ public sealed class MealDocumentMapperTest
         var id = MealId.NewId();
         var userId = new UserId("firebase-uid-123");
         var items = new[] { CreateItem() };
-        var originalMeal = Meal.Create(id, userId, new DateOnly(2026, 9, 3), MealType.Breakfast, items);
+        var loggedAt = new DateTimeOffset(2026, 9, 3, 12, 40, 0, TimeSpan.Zero);
+        var originalMeal = Meal.Create(id, userId, loggedAt, MealType.Breakfast, items);
 
         // Act
         var document = MealDocumentMapper.ToDocument(originalMeal);
@@ -46,7 +48,7 @@ public sealed class MealDocumentMapperTest
         // Assert
         roundTrippedMeal.Id.Should().Be(id);
         roundTrippedMeal.UserId.Should().Be(userId);
-        roundTrippedMeal.Date.Should().Be(originalMeal.Date);
+        roundTrippedMeal.LoggedAt.Should().Be(originalMeal.LoggedAt);
         roundTrippedMeal.MealType.Should().Be(originalMeal.MealType);
         roundTrippedMeal.Items.Should().BeEquivalentTo(items);
     }

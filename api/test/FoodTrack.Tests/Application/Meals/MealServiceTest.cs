@@ -61,7 +61,6 @@ public sealed class MealServiceTest
         _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
 
         var request = new CreateMealRequest(
-            new DateOnly(2026, 9, 3),
             nameof(MealType.Lunch),
             [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)]);
 
@@ -96,7 +95,6 @@ public sealed class MealServiceTest
         _foodRepository.GetByIdAsync(cocaCola.Id, Arg.Any<CancellationToken>()).Returns(cocaCola);
 
         var request = new CreateMealRequest(
-            new DateOnly(2026, 9, 3),
             nameof(MealType.Snack),
             [new MealItemRequest(cocaCola.Id.Value, null, null, canServing.Id.Value, 1)]);
 
@@ -118,7 +116,6 @@ public sealed class MealServiceTest
         _foodRepository.GetByIdAsync(foodId, Arg.Any<CancellationToken>()).Returns((Food?)null);
 
         var request = new CreateMealRequest(
-            new DateOnly(2026, 9, 3),
             nameof(MealType.Lunch),
             [new MealItemRequest(foodId.Value, 200, nameof(MeasurementUnit.Gram), null, null)]);
 
@@ -138,7 +135,6 @@ public sealed class MealServiceTest
         _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
 
         var request = new CreateMealRequest(
-            new DateOnly(2026, 9, 3),
             nameof(MealType.Lunch),
             [new MealItemRequest(rice.Id.Value, null, null, null, null)]);
 
@@ -157,7 +153,6 @@ public sealed class MealServiceTest
         _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
 
         var request = new CreateMealRequest(
-            new DateOnly(2026, 9, 3),
             nameof(MealType.Lunch),
             [new MealItemRequest(rice.Id.Value, null, null, FoodServingId.NewId().Value, 1)]);
 
@@ -177,7 +172,6 @@ public sealed class MealServiceTest
 
         var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
         var request = new UpdateMealRequest(
-            new DateOnly(2026, 9, 3),
             nameof(MealType.Lunch),
             [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)]);
 
@@ -201,7 +195,6 @@ public sealed class MealServiceTest
         _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
 
         var request = new UpdateMealRequest(
-            new DateOnly(2026, 9, 3),
             nameof(MealType.Dinner),
             [new MealItemRequest(rice.Id.Value, 100, nameof(MeasurementUnit.Gram), null, null)]);
 
@@ -212,7 +205,10 @@ public sealed class MealServiceTest
         result.Should().NotBeNull();
         result!.MealType.Should().Be(nameof(MealType.Dinner));
         result.TotalCalories.Should().Be(130);
-        await _mealRepository.Received(1).UpdateAsync(Arg.Is<Meal>(meal => meal.Id == id), Arg.Any<CancellationToken>());
+        result.LoggedAt.Should().Be(existing.LoggedAt);
+        await _mealRepository.Received(1).UpdateAsync(
+            Arg.Is<Meal>(meal => meal.Id == id && meal.LoggedAt == existing.LoggedAt),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -249,7 +245,7 @@ public sealed class MealServiceTest
     private Meal CreateMeal(IReadOnlyList<MealItem> items, MealId? id = null) => Meal.Create(
         id ?? MealId.NewId(),
         _userId,
-        new DateOnly(2026, 9, 3),
+        new DateTimeOffset(2026, 9, 3, 12, 40, 0, TimeSpan.Zero),
         MealType.Lunch,
         items);
 

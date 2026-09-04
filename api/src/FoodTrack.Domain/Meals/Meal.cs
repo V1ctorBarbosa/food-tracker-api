@@ -15,7 +15,7 @@ public sealed class Meal
 
     public UserId UserId { get; }
 
-    public DateOnly Date { get; }
+    public DateTimeOffset LoggedAt { get; }
 
     public MealType MealType { get; }
 
@@ -29,22 +29,22 @@ public sealed class Meal
 
     public Grams TotalFat => new(Items.Sum(item => item.Fat.Value));
 
-    private Meal(MealId id, UserId userId, DateOnly date, MealType mealType, IReadOnlyList<MealItem> items)
+    private Meal(MealId id, UserId userId, DateTimeOffset loggedAt, MealType mealType, IReadOnlyList<MealItem> items)
     {
         Id = id;
         UserId = userId;
-        Date = date;
+        LoggedAt = loggedAt;
         MealType = mealType;
         Items = items;
     }
 
-    public static Meal Create(MealId id, UserId userId, DateOnly date, MealType mealType, IReadOnlyList<MealItem> items)
+    public static Meal Create(MealId id, UserId userId, DateTimeOffset loggedAt, MealType mealType, IReadOnlyList<MealItem> items)
     {
         if (items.Count == 0)
         {
             throw new ArgumentException("A meal must have at least one item.", nameof(items));
         }
 
-        return new Meal(id, userId, date, mealType, items);
+        return new Meal(id, userId, loggedAt, mealType, items);
     }
 }

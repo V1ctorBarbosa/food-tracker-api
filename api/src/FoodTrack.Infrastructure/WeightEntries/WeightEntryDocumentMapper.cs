@@ -14,13 +14,13 @@ internal static class WeightEntryDocumentMapper
     public static WeightEntry ToDomain(WeightEntryId id, WeightEntryDocument document) => WeightEntry.Create(
         id,
         new UserId(document.UserId),
-        DateOnly.FromDateTime(document.Date),
+        document.LoggedAt,
         new Kilograms(document.WeightKilograms));
 
     public static WeightEntryDocument ToDocument(WeightEntry entry) => new()
     {
         UserId = entry.UserId.Value,
-        Date = DateTime.SpecifyKind(entry.Date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc),
+        LoggedAt = entry.LoggedAt,
         WeightKilograms = entry.Weight.Value,
     };
 }

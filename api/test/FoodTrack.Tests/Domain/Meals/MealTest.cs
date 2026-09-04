@@ -14,16 +14,16 @@ public sealed class MealTest
         // Arrange
         var id = MealId.NewId();
         var userId = new UserId("firebase-uid-123");
-        var date = new DateOnly(2026, 9, 3);
+        var loggedAt = new DateTimeOffset(2026, 9, 3, 12, 40, 0, TimeSpan.Zero);
         var items = new[] { CreateItem(260, 5.4, 56, 0.6) };
 
         // Act
-        var meal = Meal.Create(id, userId, date, MealType.Lunch, items);
+        var meal = Meal.Create(id, userId, loggedAt, MealType.Lunch, items);
 
         // Assert
         meal.Id.Should().Be(id);
         meal.UserId.Should().Be(userId);
-        meal.Date.Should().Be(date);
+        meal.LoggedAt.Should().Be(loggedAt);
         meal.MealType.Should().Be(MealType.Lunch);
         meal.Items.Should().BeEquivalentTo(items);
     }
@@ -32,7 +32,7 @@ public sealed class MealTest
     public void Create_Throws_WhenItemsIsEmpty()
     {
         // Act
-        var act = () => Meal.Create(MealId.NewId(), new UserId("firebase-uid-123"), new DateOnly(2026, 9, 3), MealType.Lunch, []);
+        var act = () => Meal.Create(MealId.NewId(), new UserId("firebase-uid-123"), DateTimeOffset.UtcNow, MealType.Lunch, []);
 
         // Assert
         act.Should().Throw<ArgumentException>();
@@ -50,7 +50,7 @@ public sealed class MealTest
         };
 
         // Act
-        var meal = Meal.Create(MealId.NewId(), new UserId("firebase-uid-123"), new DateOnly(2026, 9, 3), MealType.Lunch, items);
+        var meal = Meal.Create(MealId.NewId(), new UserId("firebase-uid-123"), DateTimeOffset.UtcNow, MealType.Lunch, items);
 
         // Assert
         meal.TotalCalories.Value.Should().Be(640);

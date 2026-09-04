@@ -42,13 +42,13 @@ public sealed class FirestoreMealRepository : IMealRepository
         DateOnly to,
         CancellationToken cancellationToken = default)
     {
-        var fromUtc = DateTime.SpecifyKind(from.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-        var toUtc = DateTime.SpecifyKind(to.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var fromUtc = new DateTimeOffset(DateTime.SpecifyKind(from.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
+        var toExclusiveUtc = new DateTimeOffset(DateTime.SpecifyKind(to.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
 
         var query = _firestoreDb.Collection(CollectionName)
             .WhereEqualTo(nameof(MealDocument.UserId), userId.Value)
-            .WhereGreaterThanOrEqualTo(nameof(MealDocument.Date), fromUtc)
-            .WhereLessThanOrEqualTo(nameof(MealDocument.Date), toUtc);
+            .WhereGreaterThanOrEqualTo(nameof(MealDocument.LoggedAt), fromUtc)
+            .WhereLessThan(nameof(MealDocument.LoggedAt), toExclusiveUtc);
 
         var querySnapshot = await query.GetSnapshotAsync(cancellationToken);
 
@@ -60,7 +60,7 @@ public sealed class FirestoreMealRepository : IMealRepository
             meals.Add(MealDocumentMapper.ToDomain(mealId, userId, mealSnapshot.ConvertTo<MealDocument>(), items));
         }
 
-        return meals.OrderBy(meal => meal.Date).ToList();
+        return meals.OrderBy(meal => meal.LoggedAt).ToList();
     }
 
     public async Task AddAsync(Meal meal, CancellationToken cancellationToken = default)

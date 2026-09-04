@@ -13,18 +13,18 @@ public sealed class WeightEntry
 
     public UserId UserId { get; }
 
-    public DateOnly Date { get; }
+    public DateTimeOffset LoggedAt { get; }
 
     public Kilograms Weight { get; }
 
-    private WeightEntry(WeightEntryId id, UserId userId, DateOnly date, Kilograms weight)
+    private WeightEntry(WeightEntryId id, UserId userId, DateTimeOffset loggedAt, Kilograms weight)
     {
         Id = id;
         UserId = userId;
-        Date = date;
+        LoggedAt = loggedAt;
         Weight = weight;
     }
 
-    public static WeightEntry Create(WeightEntryId id, UserId userId, DateOnly date, Kilograms weight) =>
-        new(id, userId, date, weight);
+    public static WeightEntry Create(WeightEntryId id, UserId userId, DateTimeOffset loggedAt, Kilograms weight) =>
+        new(id, userId, loggedAt, weight);
 }

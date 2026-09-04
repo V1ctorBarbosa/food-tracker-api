@@ -97,7 +97,11 @@ public sealed class DashboardServiceTest
     {
         // Arrange — the most recent entry falls outside [from, to], but it is still "current".
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
-        var mostRecentEntry = WeightEntry.Create(WeightEntryId.NewId(), _userId, new DateOnly(2026, 8, 20), new Kilograms(87.6));
+        var mostRecentEntry = WeightEntry.Create(
+            WeightEntryId.NewId(),
+            _userId,
+            new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero),
+            new Kilograms(87.6));
         _weightEntryRepository.GetMostRecentAsync(_userId, Arg.Any<CancellationToken>()).Returns(mostRecentEntry);
 
         // Act
@@ -112,8 +116,16 @@ public sealed class DashboardServiceTest
     {
         // Arrange — sparse on purpose: no entry logged for 2026-09-02.
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
-        var firstEntry = WeightEntry.Create(WeightEntryId.NewId(), _userId, new DateOnly(2026, 9, 1), new Kilograms(88));
-        var thirdEntry = WeightEntry.Create(WeightEntryId.NewId(), _userId, new DateOnly(2026, 9, 3), new Kilograms(87.6));
+        var firstEntry = WeightEntry.Create(
+            WeightEntryId.NewId(),
+            _userId,
+            new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
+            new Kilograms(88));
+        var thirdEntry = WeightEntry.Create(
+            WeightEntryId.NewId(),
+            _userId,
+            new DateTimeOffset(2026, 9, 3, 0, 0, 0, TimeSpan.Zero),
+            new Kilograms(87.6));
         _weightEntryRepository.ListByUserAsync(_userId, _from, _to, Arg.Any<CancellationToken>())
             .Returns([firstEntry, thirdEntry]);
 
@@ -178,7 +190,7 @@ public sealed class DashboardServiceTest
     private static Meal CreateMeal(DateOnly date, MealItem item) => Meal.Create(
         MealId.NewId(),
         new UserId("firebase-uid-123"),
-        date,
+        new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
         MealType.Lunch,
         [item]);
 
