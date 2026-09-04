@@ -73,7 +73,7 @@ public sealed class MealServiceTest
         result.Items[0].Calories.Should().Be(260);
         result.Items[0].Quantity.Should().Be(200);
         result.TotalCalories.Should().Be(260);
-        await _mealRepository.Received(1).AddAsync(Arg.Is<Meal>(m => m.UserId == _userId), Arg.Any<CancellationToken>());
+        await _mealRepository.Received(1).AddAsync(Arg.Is<Meal>(meal => meal.UserId == _userId), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public sealed class MealServiceTest
         result.Should().NotBeNull();
         result!.MealType.Should().Be(nameof(MealType.Dinner));
         result.TotalCalories.Should().Be(130);
-        await _mealRepository.Received(1).UpdateAsync(Arg.Is<Meal>(m => m.Id == id), Arg.Any<CancellationToken>());
+        await _mealRepository.Received(1).UpdateAsync(Arg.Is<Meal>(meal => meal.Id == id), Arg.Any<CancellationToken>());
     }
 
     [Fact]

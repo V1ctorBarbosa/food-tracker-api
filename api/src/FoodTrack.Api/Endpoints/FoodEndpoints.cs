@@ -1,5 +1,6 @@
 using FoodTrack.Application.Foods;
 using FoodTrack.Domain.Foods;
+using Microsoft.AspNetCore.Mvc;
 
 namespace FoodTrack.Api.Endpoints;
 
@@ -29,11 +30,14 @@ public static class FoodEndpoints
         return Results.Ok(food);
     }
 
-    private static async Task<IResult> SearchAsync(string q, FoodService foodService, CancellationToken cancellationToken)
+    private static async Task<IResult> SearchAsync(
+        [FromQuery(Name = "q")] string searchQuery,
+        FoodService foodService,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var foods = await foodService.SearchAsync(q, cancellationToken);
+            var foods = await foodService.SearchAsync(searchQuery, cancellationToken);
             return Results.Ok(foods);
         }
         catch (ArgumentException ex)

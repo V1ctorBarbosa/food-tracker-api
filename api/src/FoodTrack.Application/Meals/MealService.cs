@@ -127,7 +127,7 @@ public sealed class MealService
         }
 
         var servingId = new FoodServingId(servingIdValue);
-        var serving = food.Servings.FirstOrDefault(s => s.Id == servingId);
+        var serving = food.Servings.FirstOrDefault(candidate => candidate.Id == servingId);
         if (serving is null)
         {
             throw new ArgumentException($"Food '{food.Id.Value}' has no serving '{servingIdValue}'.", nameof(servingIdValue));

@@ -27,7 +27,7 @@ public static class NutritionCalculator
             throw new ArgumentOutOfRangeException(nameof(servingCount), servingCount, "Serving count must be positive.");
         }
 
-        var serving = food.Servings.FirstOrDefault(s => s.Id == servingId);
+        var serving = food.Servings.FirstOrDefault(candidate => candidate.Id == servingId);
         if (serving is null)
         {
             throw new ArgumentException($"Food '{food.Id.Value}' has no serving '{servingId.Value}'.", nameof(servingId));

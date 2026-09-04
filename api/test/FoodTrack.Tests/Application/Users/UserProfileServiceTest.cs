@@ -86,7 +86,7 @@ public sealed class UserProfileServiceTest
         result.Id.Should().Be("firebase-uid-123");
         result.Name.Should().Be("Victor");
         await _userRepository.Received(1).SaveAsync(
-            Arg.Is<User>(u => u.Id == userId && u.Name == "Victor"),
+            Arg.Is<User>(user => user.Id == userId && user.Name == "Victor"),
             Arg.Any<CancellationToken>());
     }
 

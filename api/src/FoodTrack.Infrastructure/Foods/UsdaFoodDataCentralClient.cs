@@ -72,5 +72,5 @@ public sealed class UsdaFoodDataCentralClient : IExternalFoodSource
     }
 
     private static double? FindNutrientAmount(List<UsdaAbridgedNutrientDto> nutrients, string nutrientNumber) =>
-        nutrients.FirstOrDefault(n => n.NutrientNumber == nutrientNumber)?.Value;
+        nutrients.FirstOrDefault(nutrient => nutrient.NutrientNumber == nutrientNumber)?.Value;
 }

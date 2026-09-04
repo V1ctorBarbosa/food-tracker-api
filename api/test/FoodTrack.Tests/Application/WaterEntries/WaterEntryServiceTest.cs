@@ -53,7 +53,7 @@ public sealed class WaterEntryServiceTest
         result.LoggedAt.Should().Be(loggedAt);
         result.AmountMilliliters.Should().Be(250);
         await _waterEntryRepository.Received(1).AddAsync(
-            Arg.Is<WaterEntry>(e => e.UserId == _userId && e.LoggedAt == loggedAt),
+            Arg.Is<WaterEntry>(entry => entry.UserId == _userId && entry.LoggedAt == loggedAt),
             Arg.Any<CancellationToken>());
     }
 
@@ -97,7 +97,7 @@ public sealed class WaterEntryServiceTest
         result.Should().NotBeNull();
         result!.AmountMilliliters.Should().Be(300);
         await _waterEntryRepository.Received(1).UpdateAsync(
-            Arg.Is<WaterEntry>(e => e.Id == id && e.Amount.Value == 300),
+            Arg.Is<WaterEntry>(entry => entry.Id == id && entry.Amount.Value == 300),
             Arg.Any<CancellationToken>());
     }
 

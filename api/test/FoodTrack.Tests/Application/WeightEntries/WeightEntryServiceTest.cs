@@ -52,7 +52,7 @@ public sealed class WeightEntryServiceTest
         result.Date.Should().Be(date);
         result.WeightKilograms.Should().Be(87.6);
         await _weightEntryRepository.Received(1).AddAsync(
-            Arg.Is<WeightEntry>(e => e.UserId == _userId && e.Date == date),
+            Arg.Is<WeightEntry>(entry => entry.UserId == _userId && entry.Date == date),
             Arg.Any<CancellationToken>());
     }
 
@@ -88,7 +88,7 @@ public sealed class WeightEntryServiceTest
         result.Should().NotBeNull();
         result!.WeightKilograms.Should().Be(87.6);
         await _weightEntryRepository.Received(1).UpdateAsync(
-            Arg.Is<WeightEntry>(e => e.Id == id && e.Weight.Value == 87.6),
+            Arg.Is<WeightEntry>(entry => entry.Id == id && entry.Weight.Value == 87.6),
             Arg.Any<CancellationToken>());
     }
 

@@ -66,5 +66,7 @@ public sealed class FoodService
         food.ProteinPerBaseUnit.Value,
         food.CarbsPerBaseUnit.Value,
         food.FatPerBaseUnit.Value,
-        food.Servings.Select(s => new FoodServingDto(s.Id.Value, s.Name, s.Quantity, s.Unit.ToString())).ToList());
+        food.Servings
+            .Select(serving => new FoodServingDto(serving.Id.Value, serving.Name, serving.Quantity, serving.Unit.ToString()))
+            .ToList());
 }
