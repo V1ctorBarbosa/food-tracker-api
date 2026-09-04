@@ -5,11 +5,25 @@ using FoodTrack.Infrastructure;
 using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Authentication;
 
+const string DevelopmentCorsPolicyName = "DevelopmentCors";
+const string ExpoWebDevServerOrigin = "http://localhost:8081";
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(DevelopmentCorsPolicyName, policy =>
+    {
+        policy
+            .WithOrigins(ExpoWebDevServerOrigin)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 builder.Services
     .AddAuthentication(FirebaseAuthenticationHandler.SchemeName)
@@ -21,6 +35,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseCors(DevelopmentCorsPolicyName);
 }
 
 app.UseHttpsRedirection();
