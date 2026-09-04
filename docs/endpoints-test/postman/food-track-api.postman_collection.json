@@ -1,0 +1,251 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-4a1b-9c2d-food-track-api",
+    "name": "Food Track API",
+    "description": "FoodTrack's own .NET API (all endpoints live in api/src/FoodTrack.Api/Endpoints). Requires an environment with `baseUrl` and `idToken` set -- see food-track-api.postman_environment.json. Every request except the two Health checks requires a valid Firebase ID token in `idToken`; there is no client sign-in flow yet (no mobile app), so mint one another way (e.g. a temporary Firebase Auth test page, or ask for a throwaway custom-token exchange) and paste it into the environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{idToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "description": "No auth required. Confirms the API process is up."
+          }
+        },
+        {
+          "name": "Firebase Health Check",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health/firebase", "host": ["{{baseUrl}}"], "path": ["health", "firebase"] },
+            "description": "No auth required. Reads a throwaway Firestore document to confirm the Firebase Admin SDK credentials and project connectivity are working."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/profile", "host": ["{{baseUrl}}"], "path": ["profile"] },
+            "description": "Returns 404 until the caller has upserted a profile at least once."
+          }
+        },
+        {
+          "name": "Upsert Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/profile", "host": ["{{baseUrl}}"], "path": ["profile"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Victor\",\n  \"age\": 27,\n  \"heightCentimeters\": 175,\n  \"sex\": \"Male\",\n  \"activityLevel\": \"Moderate\",\n  \"targetWeightKilograms\": 80,\n  \"desiredCalorieDeficit\": 500,\n  \"dailyCalorieTarget\": 2000\n}"
+            },
+            "description": "Full replace (create-or-update). sex: Male|Female. activityLevel: Sedentary|Light|Moderate|Active|VeryActive. targetWeightKilograms is optional (omit or null)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Weight Entries",
+      "item": [
+        {
+          "name": "List Weight Entries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/weight-entries?from=2026-09-01&to=2026-09-07",
+              "host": ["{{baseUrl}}"],
+              "path": ["weight-entries"],
+              "query": [
+                { "key": "from", "value": "2026-09-01" },
+                { "key": "to", "value": "2026-09-07" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Weight Entry",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/weight-entries", "host": ["{{baseUrl}}"], "path": ["weight-entries"] },
+            "body": { "mode": "raw", "raw": "{\n  \"date\": \"2026-09-03\",\n  \"weightKilograms\": 87.6\n}" }
+          }
+        },
+        {
+          "name": "Update Weight Entry",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/weight-entries/:id", "host": ["{{baseUrl}}"], "path": ["weight-entries", ":id"], "variable": [{ "key": "id", "value": "" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"date\": \"2026-09-03\",\n  \"weightKilograms\": 87.2\n}" }
+          }
+        },
+        {
+          "name": "Delete Weight Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/weight-entries/:id", "host": ["{{baseUrl}}"], "path": ["weight-entries", ":id"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Water Entries",
+      "item": [
+        {
+          "name": "List Water Entries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/water-entries?from=2026-09-01&to=2026-09-07",
+              "host": ["{{baseUrl}}"],
+              "path": ["water-entries"],
+              "query": [
+                { "key": "from", "value": "2026-09-01" },
+                { "key": "to", "value": "2026-09-07" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Water Entry",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/water-entries", "host": ["{{baseUrl}}"], "path": ["water-entries"] },
+            "body": { "mode": "raw", "raw": "{\n  \"loggedAt\": \"2026-09-03T08:00:00Z\",\n  \"amountMilliliters\": 250\n}" }
+          }
+        },
+        {
+          "name": "Update Water Entry",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/water-entries/:id", "host": ["{{baseUrl}}"], "path": ["water-entries", ":id"], "variable": [{ "key": "id", "value": "" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"loggedAt\": \"2026-09-03T09:00:00Z\",\n  \"amountMilliliters\": 300\n}" }
+          }
+        },
+        {
+          "name": "Delete Water Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/water-entries/:id", "host": ["{{baseUrl}}"], "path": ["water-entries", ":id"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Foods",
+      "item": [
+        {
+          "name": "Search Foods",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/foods/search?q=chicken",
+              "host": ["{{baseUrl}}"],
+              "path": ["foods", "search"],
+              "query": [{ "key": "q", "value": "chicken" }]
+            },
+            "description": "Cache-first: searches Firestore by name prefix, falls back to USDA FoodData Central on a miss and caches every result. First call for a new query is slower (external API round trip); repeat calls are cache hits."
+          }
+        },
+        {
+          "name": "Get Food by Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/foods/:id", "host": ["{{baseUrl}}"], "path": ["foods", ":id"], "variable": [{ "key": "id", "value": "" }] },
+            "description": "id here is FoodTrack's own FoodId (from a Search Foods result), not USDA's fdcId."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meals",
+      "item": [
+        {
+          "name": "List Meals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meals?from=2026-09-01&to=2026-09-07",
+              "host": ["{{baseUrl}}"],
+              "path": ["meals"],
+              "query": [
+                { "key": "from", "value": "2026-09-01" },
+                { "key": "to", "value": "2026-09-07" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Meal by Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/meals/:id", "host": ["{{baseUrl}}"], "path": ["meals", ":id"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Create Meal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/meals", "host": ["{{baseUrl}}"], "path": ["meals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-09-03\",\n  \"mealType\": \"Lunch\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 200,\n      \"unit\": \"Gram\",\n      \"foodServingId\": null,\n      \"servingCount\": null\n    }\n  ]\n}"
+            },
+            "description": "Each item needs exactly one of two shapes: (quantity + unit) for a raw amount, or (foodServingId + servingCount) to log by a named serving from that food's servings list (e.g. \"1 can\"). unit: Gram|Kilogram|Milliliter|Liter. mealType: Breakfast|Lunch|Dinner|Snack. Nutrition is computed and snapshotted server-side -- do not send calories/protein/carbs/fat."
+          }
+        },
+        {
+          "name": "Update Meal",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/meals/:id", "host": ["{{baseUrl}}"], "path": ["meals", ":id"], "variable": [{ "key": "id", "value": "" }] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-09-03\",\n  \"mealType\": \"Dinner\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": null,\n      \"unit\": null,\n      \"foodServingId\": \"<a serving id from that food>\",\n      \"servingCount\": 1\n    }\n  ]\n}"
+            },
+            "description": "Full replace, same shape as Create Meal. Items not included here are removed from the meal."
+          }
+        },
+        {
+          "name": "Delete Meal",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/meals/:id", "host": ["{{baseUrl}}"], "path": ["meals", ":id"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        }
+      ]
+    }
+  ]
+}
