@@ -16,7 +16,7 @@ namespace FoodTrack.Infrastructure;
 
 public static class DependencyInjection
 {
-    private const string UsdaFoodDataCentralBaseUrl = "https://api.nal.usda.gov/fdc/v1/";
+    private const string TacoBaseUrl = "https://brolesi.github.io/taco/";
     private const string OpenFoodFactsBaseUrl = "https://search.openfoodfacts.org/";
 
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
@@ -28,15 +28,9 @@ public static class DependencyInjection
         services.AddScoped<IFoodRepository, FirestoreFoodRepository>();
         services.AddScoped<IMealRepository, FirestoreMealRepository>();
 
-        services
-            .AddOptions<UsdaFoodDataCentralOptions>()
-            .Bind(configuration.GetSection(UsdaFoodDataCentralOptions.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
-        services.AddHttpClient<UsdaFoodDataCentralClient>(client =>
+        services.AddHttpClient<TacoFoodDataClient>(client =>
         {
-            client.BaseAddress = new Uri(UsdaFoodDataCentralBaseUrl);
+            client.BaseAddress = new Uri(TacoBaseUrl);
         });
 
         services.AddHttpClient<OpenFoodFactsClient>(client =>

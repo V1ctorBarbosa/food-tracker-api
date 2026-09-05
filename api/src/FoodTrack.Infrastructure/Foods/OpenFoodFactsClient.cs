@@ -7,8 +7,8 @@ namespace FoodTrack.Infrastructure.Foods;
 
 /// <summary>
 /// Queries Open Food Facts' search-a-licious endpoint, scoped to Brazilian products in
-/// Portuguese -- the crowdsourced branded-product counterpart to <see cref="UsdaFoodDataCentralClient"/>'s
-/// generic ingredients (docs section 14). Like USDA, every result is reported per 100g: Open Food
+/// Portuguese -- the crowdsourced branded-product counterpart to <see cref="TacoFoodDataClient"/>'s
+/// generic ingredients (docs section 14). Every result is reported per 100g: Open Food
 /// Facts' nutriment fields use the "_100g" suffix uniformly, including for liquids.
 /// </summary>
 public sealed class OpenFoodFactsClient : IExternalFoodSource

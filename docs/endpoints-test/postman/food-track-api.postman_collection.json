@@ -167,12 +167,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/foods/search?q=chicken",
+              "raw": "{{baseUrl}}/foods/search?q=arroz",
               "host": ["{{baseUrl}}"],
               "path": ["foods", "search"],
-              "query": [{ "key": "q", "value": "chicken" }]
+              "query": [{ "key": "q", "value": "arroz" }]
             },
-            "description": "Cache-first: searches Firestore by name prefix, falls back to USDA FoodData Central on a miss and caches every result. First call for a new query is slower (external API round trip); repeat calls are cache hits. q must be at least 3 characters (400 otherwise) -- this guards the external API from a search-as-you-type client firing one request per keystroke; USDA is English-only, so search in English (e.g. \"chicken breast\", not \"peito de frango\") until a translation layer exists."
+            "description": "Cache-first: searches Firestore by name prefix, falls back to TACO (generic/prepared Brazilian foods) and Open Food Facts (Brazilian branded products) on a miss and caches every result. First call for a new query is slower (external API round trips); repeat calls are cache hits. q must be at least 3 characters (400 otherwise) -- this guards the external APIs from a search-as-you-type client firing one request per keystroke. Both sources are Portuguese, so search in Portuguese (e.g. \"peito de frango\")."
           }
         },
         {
@@ -181,7 +181,7 @@
             "method": "GET",
             "header": [],
             "url": { "raw": "{{baseUrl}}/foods/:id", "host": ["{{baseUrl}}"], "path": ["foods", ":id"], "variable": [{ "key": "id", "value": "" }] },
-            "description": "id here is FoodTrack's own FoodId (from a Search Foods result), not USDA's fdcId."
+            "description": "id here is FoodTrack's own FoodId (from a Search Foods result), not the external source's own id (TACO's numeric id or Open Food Facts' barcode)."
           }
         },
         {

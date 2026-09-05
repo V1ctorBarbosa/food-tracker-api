@@ -582,14 +582,17 @@ Firestore
 After the first lookup, the food becomes available locally.
 
 **Implemented as two external sources queried together**, not one (`FoodTrack.Infrastructure/Foods/CompositeFoodSource`):
-USDA FoodData Central for generic ingredients (raw/whole foods, always in English), and Open Food
-Facts for Brazilian branded products (scoped to `countries_tags:"en:brazil"` and `lang=pt`, so
-search matches the Portuguese names actual Brazilian packaging was scanned with). Both speak
-`IExternalFoodSource`; the composite runs them in parallel and concatenates the results, so a
-search shows the raw ingredient and the specific packaged product side by side. One source
-failing (e.g. a network error) degrades to just the other's results rather than failing the whole
-search. `Food.Source` (`FoodSource` enum) records which one a cached food came from: `Usda`,
-`OpenFoodFacts`, or `Custom`.
+TACO (NEPA/UNICAMP, via the community-maintained static-JSON mirror at `brolesi.github.io/taco`)
+for generic and prepared Brazilian foods -- each entry states its preparation state explicitly
+(`cru`, `cozido`, etc), unlike a source that defaults to "as sold" for staples like rice -- and
+Open Food Facts for Brazilian branded products (scoped to `countries_tags:"en:brazil"` and
+`lang=pt`, so search matches the Portuguese names actual Brazilian packaging was scanned with).
+Both speak `IExternalFoodSource`; the composite runs them in parallel and concatenates the
+results, so a search shows the generic food and the specific packaged product side by side. One
+source failing (e.g. a network error) degrades to just the other's results rather than failing
+the whole search. `Food.Source` (`FoodSource` enum) records which one a cached food came from:
+`Taco`, `OpenFoodFacts`, or `Custom`. `Usda` is a retired value kept only so a food cached from
+an earlier USDA search still parses -- USDA is no longer queried live.
 
 It will also be possible to create custom foods in the future, such as:
 
