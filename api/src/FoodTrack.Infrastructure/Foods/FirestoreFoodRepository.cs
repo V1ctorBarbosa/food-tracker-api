@@ -31,26 +31,55 @@ public sealed class FirestoreFoodRepository : IFoodRepository
 
     public async Task<IReadOnlyList<Food>> SearchByNameAsync(string query, CancellationToken cancellationToken = default)
     {
-        // Firestore has no native prefix/text-search operator, so this uses the standard
-        // "starts with" trick: U+F8FF sorts above every normal indexed character, so the
-        // range [queryLower, queryLower + U+F8FF] captures every NameLower starting with it.
+        // Firestore has no native contains/text-search operator, only the standard "starts with"
+        // trick (U+F8FF sorts above every normal indexed character, so the range
+        // [firstWord, firstWord + U+F8FF] captures every NameLower starting with it). A query can
+        // have several words ("arroz cozido"), so the range narrows candidates by the first word
+        // only -- cheap and index-backed -- and FoodNameMatcher then confirms every other word is
+        // present too, in any order/position, over that (small) candidate set.
         var queryLower = query.Trim().ToLowerInvariant();
-        var prefixUpperBound = queryLower + '';
+        var firstWord = queryLower.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? queryLower;
+        var prefixUpperBound = firstWord + '';
 
         var querySnapshot = await _firestoreDb.Collection(CollectionName)
-            .WhereGreaterThanOrEqualTo(nameof(FoodDocument.NameLower), queryLower)
+            .WhereGreaterThanOrEqualTo(nameof(FoodDocument.NameLower), firstWord)
             .WhereLessThanOrEqualTo(nameof(FoodDocument.NameLower), prefixUpperBound)
             .GetSnapshotAsync(cancellationToken);
 
         var foods = new List<Food>();
         foreach (var foodSnapshot in querySnapshot.Documents)
         {
+            var document = foodSnapshot.ConvertTo<FoodDocument>();
+            if (!FoodNameMatcher.MatchesAllWords(document.NameLower, queryLower))
+            {
+                continue;
+            }
+
             var foodId = new FoodId(foodSnapshot.Id);
             var servings = await LoadServingsAsync(foodSnapshot.Reference, cancellationToken);
-            foods.Add(FoodDocumentMapper.ToDomain(foodId, foodSnapshot.ConvertTo<FoodDocument>(), servings));
+            foods.Add(FoodDocumentMapper.ToDomain(foodId, document, servings));
         }
 
         return foods;
+    }
+
+    public async Task<Food?> GetBySourceAndExternalIdAsync(FoodSource source, string externalId, CancellationToken cancellationToken = default)
+    {
+        var querySnapshot = await _firestoreDb.Collection(CollectionName)
+            .WhereEqualTo(nameof(FoodDocument.Source), source.ToString())
+            .WhereEqualTo(nameof(FoodDocument.ExternalId), externalId)
+            .Limit(1)
+            .GetSnapshotAsync(cancellationToken);
+
+        var documentSnapshot = querySnapshot.Documents.FirstOrDefault();
+        if (documentSnapshot is null)
+        {
+            return null;
+        }
+
+        var foodId = new FoodId(documentSnapshot.Id);
+        var servings = await LoadServingsAsync(documentSnapshot.Reference, cancellationToken);
+        return FoodDocumentMapper.ToDomain(foodId, documentSnapshot.ConvertTo<FoodDocument>(), servings);
     }
 
     public async Task SaveAsync(Food food, CancellationToken cancellationToken = default)

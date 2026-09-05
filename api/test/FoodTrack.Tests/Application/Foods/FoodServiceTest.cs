@@ -146,6 +146,41 @@ public sealed class FoodServiceTest
     }
 
     [Fact]
+    public async Task SearchAsync_ReusesExistingCachedFoodId_WhenExternalResultMatchesSourceAndExternalId()
+    {
+        // Arrange
+        var externalFood = CreateChickenBreast();
+        var existingCachedId = FoodId.NewId();
+        var existingCachedFood = Food.Create(
+            existingCachedId,
+            "Chicken breast (stale name)",
+            FoodSource.Usda,
+            "171077",
+            new BaseUnit(100, MeasurementUnit.Gram),
+            new Kilocalories(160),
+            new Grams(30),
+            new Grams(0),
+            new Grams(3.5));
+
+        _foodRepository.SearchByNameAsync("chicken", Arg.Any<CancellationToken>()).Returns([]);
+        _externalFoodSource.SearchAsync("chicken", Arg.Any<CancellationToken>()).Returns([externalFood]);
+        _foodRepository.GetBySourceAndExternalIdAsync(FoodSource.Usda, "171077", Arg.Any<CancellationToken>())
+            .Returns(existingCachedFood);
+
+        // Act
+        var result = await _sut.SearchAsync(_userId, "chicken");
+
+        // Assert -- fresh nutrition data is kept, but the id is the one already cached, so a
+        // repeated search for the same external food never duplicates its cache entry.
+        result.Should().ContainSingle();
+        result[0].Id.Should().Be(existingCachedId.Value);
+        result[0].Name.Should().Be("Chicken breast");
+        await _foodRepository.Received(1).SaveAsync(
+            Arg.Is<Food>(food => food.Id == existingCachedId && food.Name == "Chicken breast"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task SearchAsync_ReturnsEmpty_WhenBothCacheAndExternalSourceMiss()
     {
         // Arrange

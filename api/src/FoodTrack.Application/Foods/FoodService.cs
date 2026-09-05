@@ -52,12 +52,13 @@ public sealed class FoodService
         }
 
         var externalFoods = await _externalFoodSource.SearchAsync(query, cancellationToken);
+        var savedFoods = new List<Food>();
         foreach (var food in externalFoods)
         {
-            await _foodRepository.SaveAsync(food, cancellationToken);
+            savedFoods.Add(await SaveDeduplicatedAsync(food, cancellationToken));
         }
 
-        return FilterVisible(externalFoods, userId).Select(ToDto).ToList();
+        return FilterVisible(savedFoods, userId).Select(ToDto).ToList();
     }
 
     public async Task<FoodDto> CreateCustomAsync(UserId userId, CreateCustomFoodRequest request, CancellationToken cancellationToken = default)
@@ -77,6 +78,36 @@ public sealed class FoodService
         await _foodRepository.SaveAsync(food, cancellationToken);
         return ToDto(food);
     }
+
+    /// <summary>
+    /// Saves an externally-fetched food, reusing an existing cached FoodId for the same
+    /// Source+ExternalId when one exists -- otherwise every repeated search for the same
+    /// external food (e.g. "arroz" today, "arroz cozido" tomorrow) caches it again under a
+    /// freshly minted id, duplicating it in every future search result.
+    /// </summary>
+    private async Task<Food> SaveDeduplicatedAsync(Food food, CancellationToken cancellationToken)
+    {
+        var existingFood = food.ExternalId is null
+            ? null
+            : await _foodRepository.GetBySourceAndExternalIdAsync(food.Source, food.ExternalId, cancellationToken);
+
+        var foodToSave = existingFood is null ? food : WithId(food, existingFood.Id);
+        await _foodRepository.SaveAsync(foodToSave, cancellationToken);
+        return foodToSave;
+    }
+
+    private static Food WithId(Food food, FoodId id) => Food.Create(
+        id,
+        food.Name,
+        food.Source,
+        food.ExternalId,
+        food.BaseUnit,
+        food.CaloriesPerBaseUnit,
+        food.ProteinPerBaseUnit,
+        food.CarbsPerBaseUnit,
+        food.FatPerBaseUnit,
+        food.Servings,
+        food.OwnerId);
 
     private static IEnumerable<Food> FilterVisible(IEnumerable<Food> foods, UserId userId) =>
         foods.Where(food => IsVisibleTo(food, userId));

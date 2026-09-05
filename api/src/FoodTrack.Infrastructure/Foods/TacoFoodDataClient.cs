@@ -33,7 +33,7 @@ public sealed class TacoFoodDataClient : IExternalFoodSource
         }
 
         var matchingIds = response.Foods
-            .Where(summary => summary.Description.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Where(summary => FoodNameMatcher.MatchesAllWords(summary.Description, query))
             .Take(MaxResultCount)
             .Select(summary => summary.Id);
 
