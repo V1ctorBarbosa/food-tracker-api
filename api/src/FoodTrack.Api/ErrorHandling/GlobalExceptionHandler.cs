@@ -16,21 +16,28 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         _logger = logger;
     }
 
+    private const string UnexpectedErrorMessage = "An unexpected error occurred. Please try again.";
+
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
-        var (statusCode, errorCode) = MapException(exception);
+        var (statusCode, errorCode, message) = MapException(exception);
 
         _logger.LogError(exception, "Unhandled exception mapped to {StatusCode}/{ErrorCode}.", statusCode, errorCode);
 
         httpContext.Response.StatusCode = statusCode;
-        await httpContext.Response.WriteAsJsonAsync(new ApiErrorResponse(errorCode, exception.Message), cancellationToken);
+        await httpContext.Response.WriteAsJsonAsync(new ApiErrorResponse(errorCode, message), cancellationToken);
 
         return true;
     }
 
-    private static (int StatusCode, string ErrorCode) MapException(Exception exception) => exception switch
+    /// <summary>
+    /// Only ArgumentException's message is safe to return as-is -- it's a validation message we
+    /// raised ourselves. Every other exception's message may contain internal details (Firestore,
+    /// gRPC, HTTP client errors) and is logged above but never sent to the client.
+    /// </summary>
+    private static (int StatusCode, string ErrorCode, string Message) MapException(Exception exception) => exception switch
     {
-        ArgumentException => (StatusCodes.Status400BadRequest, ValidationErrorCode.InvalidRequest),
-        _ => (StatusCodes.Status500InternalServerError, GeneralErrorCode.UnexpectedError),
+        ArgumentException argumentException => (StatusCodes.Status400BadRequest, ValidationErrorCode.InvalidRequest, argumentException.Message),
+        _ => (StatusCodes.Status500InternalServerError, GeneralErrorCode.UnexpectedError, UnexpectedErrorMessage),
     };
 }

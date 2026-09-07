@@ -50,6 +50,7 @@ public sealed class GlobalExceptionHandlerTest
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
         var body = await ReadResponseBodyAsync(httpContext);
         body.ErrorCode.Should().Be(GeneralErrorCode.UnexpectedError);
+        body.Message.Should().NotBe(exception.Message);
     }
 
     private static DefaultHttpContext CreateHttpContext() => new() { Response = { Body = new MemoryStream() } };
