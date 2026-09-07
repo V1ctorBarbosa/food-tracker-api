@@ -65,46 +65,58 @@ public sealed class FirestoreMealRepository : IMealRepository
 
     public async Task AddAsync(Meal meal, CancellationToken cancellationToken = default)
     {
-        await SaveMealAndItemsAsync(meal, cancellationToken);
+        var mealDocumentReference = _firestoreDb.Collection(CollectionName).Document(meal.Id.Value);
+
+        var batch = _firestoreDb.StartBatch();
+        batch.Set(mealDocumentReference, MealDocumentMapper.ToDocument(meal));
+        foreach (var item in meal.Items)
+        {
+            batch.Set(mealDocumentReference.Collection(ItemsSubcollectionName).Document(item.Id.Value), MealItemDocumentMapper.ToDocument(item));
+        }
+
+        await batch.CommitAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(Meal meal, CancellationToken cancellationToken = default)
     {
-        // A PUT is a full replace, so items removed from the meal must not linger in the
-        // subcollection -- clear it before writing the current set back.
         var mealDocumentReference = _firestoreDb.Collection(CollectionName).Document(meal.Id.Value);
-        var existingItemsSnapshot = await mealDocumentReference.Collection(ItemsSubcollectionName).GetSnapshotAsync(cancellationToken);
-        foreach (var itemDocument in existingItemsSnapshot.Documents)
-        {
-            await itemDocument.Reference.DeleteAsync(cancellationToken: cancellationToken);
-        }
 
-        await SaveMealAndItemsAsync(meal, cancellationToken);
+        // A PUT is a full replace, so items removed from the meal must not linger in the
+        // subcollection. Clearing the old set and writing the new one inside one transaction
+        // (instead of sequential deletes/sets) means a failure partway through can never leave
+        // the meal with its old items gone and the new ones missing.
+        await _firestoreDb.RunTransactionAsync(async transaction =>
+        {
+            var existingItemsSnapshot = await transaction.GetSnapshotAsync(mealDocumentReference.Collection(ItemsSubcollectionName));
+
+            transaction.Set(mealDocumentReference, MealDocumentMapper.ToDocument(meal));
+            foreach (var itemDocument in existingItemsSnapshot.Documents)
+            {
+                transaction.Delete(itemDocument.Reference);
+            }
+
+            foreach (var item in meal.Items)
+            {
+                transaction.Set(mealDocumentReference.Collection(ItemsSubcollectionName).Document(item.Id.Value), MealItemDocumentMapper.ToDocument(item));
+            }
+        }, cancellationToken: cancellationToken);
     }
 
     public async Task DeleteAsync(MealId id, CancellationToken cancellationToken = default)
     {
         var mealDocumentReference = _firestoreDb.Collection(CollectionName).Document(id.Value);
-        var itemsSnapshot = await mealDocumentReference.Collection(ItemsSubcollectionName).GetSnapshotAsync(cancellationToken);
-        foreach (var itemDocument in itemsSnapshot.Documents)
+
+        await _firestoreDb.RunTransactionAsync(async transaction =>
         {
-            await itemDocument.Reference.DeleteAsync(cancellationToken: cancellationToken);
-        }
+            var itemsSnapshot = await transaction.GetSnapshotAsync(mealDocumentReference.Collection(ItemsSubcollectionName));
 
-        await mealDocumentReference.DeleteAsync(cancellationToken: cancellationToken);
-    }
+            foreach (var itemDocument in itemsSnapshot.Documents)
+            {
+                transaction.Delete(itemDocument.Reference);
+            }
 
-    private async Task SaveMealAndItemsAsync(Meal meal, CancellationToken cancellationToken)
-    {
-        var mealDocumentReference = _firestoreDb.Collection(CollectionName).Document(meal.Id.Value);
-        await mealDocumentReference.SetAsync(MealDocumentMapper.ToDocument(meal), cancellationToken: cancellationToken);
-
-        foreach (var item in meal.Items)
-        {
-            await mealDocumentReference.Collection(ItemsSubcollectionName)
-                .Document(item.Id.Value)
-                .SetAsync(MealItemDocumentMapper.ToDocument(item), cancellationToken: cancellationToken);
-        }
+            transaction.Delete(mealDocumentReference);
+        }, cancellationToken: cancellationToken);
     }
 
     private static async Task<IReadOnlyList<MealItem>> LoadItemsAsync(
