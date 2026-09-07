@@ -52,15 +52,16 @@ public sealed class FirestoreMealRepository : IMealRepository
 
         var querySnapshot = await query.GetSnapshotAsync(cancellationToken);
 
-        var meals = new List<Meal>();
-        foreach (var mealSnapshot in querySnapshot.Documents)
-        {
-            var mealId = new MealId(mealSnapshot.Id);
-            var items = await LoadItemsAsync(mealSnapshot.Reference, cancellationToken);
-            meals.Add(MealDocumentMapper.ToDomain(mealId, userId, mealSnapshot.ConvertTo<MealDocument>(), items));
-        }
+        // Each meal's items live in its own subcollection, so loading them is inherently one
+        // request per meal -- run them concurrently instead of one at a time to avoid paying for
+        // that in latency too.
+        var itemsByMeal = await Task.WhenAll(
+            querySnapshot.Documents.Select(mealSnapshot => LoadItemsAsync(mealSnapshot.Reference, cancellationToken)));
 
-        return meals.OrderBy(meal => meal.LoggedAt).ToList();
+        return querySnapshot.Documents
+            .Zip(itemsByMeal, (mealSnapshot, items) => MealDocumentMapper.ToDomain(new MealId(mealSnapshot.Id), userId, mealSnapshot.ConvertTo<MealDocument>(), items))
+            .OrderBy(meal => meal.LoggedAt)
+            .ToList();
     }
 
     public async Task AddAsync(Meal meal, CancellationToken cancellationToken = default)

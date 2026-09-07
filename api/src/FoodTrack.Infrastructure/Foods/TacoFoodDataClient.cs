@@ -37,18 +37,10 @@ public sealed class TacoFoodDataClient : IExternalFoodSource
             .Take(MaxResultCount)
             .Select(summary => summary.Id);
 
-        var foods = new List<Food>();
-        foreach (var id in matchingIds)
-        {
-            var detail = await _httpClient.GetFromJsonAsync<TacoFoodDetailDto>($"foods/{id}.json", cancellationToken);
-            var food = ToFood(detail);
-            if (food is not null)
-            {
-                foods.Add(food);
-            }
-        }
+        var detailFetches = matchingIds.Select(id => _httpClient.GetFromJsonAsync<TacoFoodDetailDto>($"foods/{id}.json", cancellationToken));
+        var details = await Task.WhenAll(detailFetches);
 
-        return foods;
+        return details.Select(ToFood).OfType<Food>().ToList();
     }
 
     /// <summary>Returns null when the result has no name or is missing one of the four core macros.</summary>

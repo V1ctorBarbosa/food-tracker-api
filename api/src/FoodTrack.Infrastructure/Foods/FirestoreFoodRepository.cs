@@ -46,21 +46,19 @@ public sealed class FirestoreFoodRepository : IFoodRepository
             .WhereLessThanOrEqualTo(nameof(FoodDocument.NameLower), prefixUpperBound)
             .GetSnapshotAsync(cancellationToken);
 
-        var foods = new List<Food>();
-        foreach (var foodSnapshot in querySnapshot.Documents)
-        {
-            var document = foodSnapshot.ConvertTo<FoodDocument>();
-            if (!FoodNameMatcher.MatchesAllWords(document.NameLower, queryLower))
-            {
-                continue;
-            }
+        var matches = querySnapshot.Documents
+            .Select(foodSnapshot => (Snapshot: foodSnapshot, Document: foodSnapshot.ConvertTo<FoodDocument>()))
+            .Where(match => FoodNameMatcher.MatchesAllWords(match.Document.NameLower, queryLower))
+            .ToList();
 
-            var foodId = new FoodId(foodSnapshot.Id);
-            var servings = await LoadServingsAsync(foodSnapshot.Reference, cancellationToken);
-            foods.Add(FoodDocumentMapper.ToDomain(foodId, document, servings));
-        }
+        // Each match's servings live in its own subcollection, so loading them is inherently one
+        // request per match -- run them concurrently instead of one at a time to avoid paying for
+        // that in latency too.
+        var servingsByMatch = await Task.WhenAll(matches.Select(match => LoadServingsAsync(match.Snapshot.Reference, cancellationToken)));
 
-        return foods;
+        return matches
+            .Zip(servingsByMatch, (match, servings) => FoodDocumentMapper.ToDomain(new FoodId(match.Snapshot.Id), match.Document, servings))
+            .ToList();
     }
 
     public async Task<Food?> GetBySourceAndExternalIdAsync(FoodSource source, string externalId, CancellationToken cancellationToken = default)
