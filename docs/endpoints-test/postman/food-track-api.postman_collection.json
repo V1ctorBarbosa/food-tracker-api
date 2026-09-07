@@ -27,10 +27,9 @@
           "name": "Firebase Health Check",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
             "header": [],
             "url": { "raw": "{{baseUrl}}/health/firebase", "host": ["{{baseUrl}}"], "path": ["health", "firebase"] },
-            "description": "No auth required. Reads a throwaway Firestore document to confirm the Firebase Admin SDK credentials and project connectivity are working."
+            "description": "Requires auth -- it performs a real Firestore read, unlike the plain /health check. Confirms the Firebase Admin SDK credentials and project connectivity are working."
           }
         }
       ]

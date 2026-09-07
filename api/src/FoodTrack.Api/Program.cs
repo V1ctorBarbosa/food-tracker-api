@@ -59,7 +59,8 @@ app.MapGet("/health/firebase", async (FirestoreDb firestoreDb) =>
         documentExists = snapshot.Exists,
     });
 })
-.WithName("GetFirebaseHealth");
+.WithName("GetFirebaseHealth")
+.RequireAuthorization();
 
 app.MapProfileEndpoints();
 app.MapWeightEntryEndpoints();
