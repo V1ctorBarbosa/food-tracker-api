@@ -8,9 +8,7 @@ on:
       - "infra/terraform/app/**"
       - ".github/workflows/deploy-api.yml"
 
-# Required for AWS OIDC (no long-lived access keys) and for actions/checkout.
 permissions:
-  id-token: write
   contents: read
 
 env:
@@ -40,10 +38,14 @@ jobs:
             --output-package "$LAMBDA_ZIP_PATH" \
             --disable-interactive true
 
+      # This account is on AWS's "Free Plan", which blocks creating an OIDC provider (an AWS
+      # Organizations guardrail on that account type) -- static keys for a narrowly-scoped IAM
+      # user are the fallback. See infra/terraform/bootstrap/oidc.tf for the full reasoning.
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3

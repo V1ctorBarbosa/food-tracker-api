@@ -1,50 +1,22 @@
-# Lets GitHub Actions assume an AWS role using short-lived, per-run tokens -- no long-lived AWS
-# access keys stored anywhere. AWS no longer actually validates the thumbprint (they verify
-# against their own trusted CA bundle instead), but the API still requires one to be supplied, so
-# it's fetched live here rather than hardcoded to something that could silently go stale.
-data "tls_certificate" "github_actions" {
-  url = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
+# Originally OIDC-based (short-lived, per-run AWS credentials, no static keys). Switched to a
+# plain IAM user + access key here because this AWS account is on the "Free Plan" -- it's a
+# member of an AWS-managed Organization with a Service Control Policy that explicitly denies
+# iam:CreateOpenIDConnectProvider (confirmed: every other IAM action used in this config, like
+# CreateRole, worked fine -- only the OIDC provider itself is blocked). A static key is a real
+# security downgrade (long-lived, no auto-rotation) but is the only path available without
+# upgrading off the Free Plan, which isn't an option here. The permissions below stay just as
+# narrow as they would have been under OIDC.
+resource "aws_iam_user" "github_actions_deploy" {
+  name = "food-track-api-github-actions-deploy"
 }
 
-resource "aws_iam_openid_connect_provider" "github_actions" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.github_actions.certificates[0].sha1_fingerprint]
-}
-
-data "aws_iam_policy_document" "github_actions_assume_role" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.github_actions.arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    # Only a push to this exact branch of this exact repo can assume the role -- a PR from a
-    # fork, or a push to any other branch, is rejected before AWS credentials are ever issued.
-    condition {
-      test     = "StringLike"
-      variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/${var.github_branch}"]
-    }
-  }
-}
-
-resource "aws_iam_role" "github_actions_deploy" {
-  name               = "food-track-api-github-actions-deploy"
-  assume_role_policy = data.aws_iam_policy_document.github_actions_assume_role.json
+resource "aws_iam_access_key" "github_actions_deploy" {
+  user = aws_iam_user.github_actions_deploy.name
 }
 
 # Deliberately narrow: only the one Lambda function this repo deploys, and only PassRole for the
 # one execution role it needs to attach -- not broad Lambda or IAM access. Managing the execution
-# role itself, or the OIDC trust relationship, stays a bootstrap-only, human-run operation.
+# role itself stays a bootstrap-only, human-run operation.
 data "aws_iam_policy_document" "github_actions_deploy" {
   statement {
     sid = "ManageTheOneLambdaFunction"
@@ -81,9 +53,9 @@ data "aws_iam_policy_document" "github_actions_deploy" {
   }
 }
 
-resource "aws_iam_role_policy" "github_actions_deploy" {
+resource "aws_iam_user_policy" "github_actions_deploy" {
   name   = "deploy-food-track-api"
-  role   = aws_iam_role.github_actions_deploy.id
+  user   = aws_iam_user.github_actions_deploy.name
   policy = data.aws_iam_policy_document.github_actions_deploy.json
 }
 
