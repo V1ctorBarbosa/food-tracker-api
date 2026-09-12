@@ -14,6 +14,18 @@ api/**/obj/
 # itself (endpoints, no secrets) is fine to commit; environments are not.
 **/*.postman_environment.json
 
+# Terraform — state lives in Terraform Cloud, never locally; these are local-only working files.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+
+# Lambda build output
+/publish/
+
 # app/ is its own independent git repository (food-tracker-app on GitHub), nested here only
 # for local convenience -- this repo must never track or touch its contents.
 /app/
