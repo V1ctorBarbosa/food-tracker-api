@@ -11,8 +11,11 @@ terraform {
 
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+      source = "hashicorp/aws"
+      # ~> 5.0 (resolved to 5.100.0) rejected runtime = "dotnet10" -- its vendored AWS SDK
+      # predates AWS adding that runtime in January 2026. Confirmed 6.64.0 vendors
+      # aws-sdk-go-v2/service/lambda v1.107.0, which does have it.
+      version = "~> 6.0"
     }
   }
 }
