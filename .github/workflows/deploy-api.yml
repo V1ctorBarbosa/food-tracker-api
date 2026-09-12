@@ -1,0 +1,63 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "api/**"
+      - "infra/terraform/app/**"
+      - ".github/workflows/deploy-api.yml"
+
+# Required for AWS OIDC (no long-lived access keys) and for actions/checkout.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  LAMBDA_ZIP_PATH: ${{ github.workspace }}/publish/function.zip
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # A broken build or a failing test never reaches AWS.
+      - run: dotnet test api/FoodTrack.slnx --configuration Release
+
+      - run: dotnet tool install -g Amazon.Lambda.Tools
+
+      - name: Package the Lambda function
+        run: |
+          dotnet lambda package \
+            --project-location api/src/FoodTrack.Api \
+            --configuration Release \
+            --output-package "$LAMBDA_ZIP_PATH" \
+            --disable-interactive true
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform apply
+        working-directory: infra/terraform/app
+        run: |
+          terraform init
+          terraform apply -auto-approve -var="lambda_zip_path=$LAMBDA_ZIP_PATH"
+
+      - name: Smoke test
+        working-directory: infra/terraform/app
+        run: |
+          function_url=$(terraform output -raw function_url)
+          curl --fail --retry 5 --retry-delay 5 "${function_url}health"
