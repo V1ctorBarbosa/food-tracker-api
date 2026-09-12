@@ -16,14 +16,15 @@ You only do this once. After it's done, every future deploy is just `git push`.
 
 ### 1. Terraform Cloud (free, no card)
 
-1. Create an account at [app.terraform.io](https://app.terraform.io) and an organization.
-2. Create two workspaces in it: `food-track-api-bootstrap` and `food-track-api`, both with
-   **execution mode: Local** (Terraform runs on your machine / in GitHub Actions, not on
-   Terraform Cloud's own runners — it's only being used to store state and secrets here).
-3. Generate a user API token: *User settings → Tokens*. You'll use this in step 3 and as a GitHub
-   secret.
-4. In both `terraform/bootstrap/main.tf` and `terraform/app/main.tf`, replace
-   `REPLACE_WITH_TFC_ORG` with your actual organization name.
+1. Create an account at [app.terraform.io](https://app.terraform.io) and an organization
+   (`organization = "food-track"` is already set in both `main.tf` files — rename the org to
+   match if you called it something else).
+2. Create two workspaces in it: `food-track-api-bootstrap` and `food-track-api`, choosing the
+   **CLI-Driven Workflow** for both (not "Version control workflow" — Terraform runs on your
+   machine / in GitHub Actions, not on Terraform Cloud's own runners; it's only used here to
+   store state and secrets).
+3. Generate a user API token: *User settings → Tokens*. You'll use this in step 2 below and as a
+   GitHub secret.
 
 ### 2. Run `terraform login`
 

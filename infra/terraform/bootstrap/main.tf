@@ -2,9 +2,7 @@ terraform {
   required_version = ">= 1.7"
 
   cloud {
-    # TODO: replace with your Terraform Cloud organization name (created during the one-time
-    # bootstrap -- see infra/README.md).
-    organization = "REPLACE_WITH_TFC_ORG"
+    organization = "food-track"
 
     workspaces {
       name = "food-track-api-bootstrap"
