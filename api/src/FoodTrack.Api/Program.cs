@@ -1,3 +1,4 @@
+using Amazon.Lambda.AspNetCoreServer.Hosting;
 using FoodTrack.Api.Authentication;
 using FoodTrack.Api.Endpoints;
 using FoodTrack.Api.ErrorHandling;
@@ -10,6 +11,10 @@ const string DevelopmentCorsPolicyName = "DevelopmentCors";
 const string ExpoWebDevServerOrigin = "http://localhost:8081";
 
 var builder = WebApplication.CreateBuilder(args);
+
+// A no-op outside Lambda -- Kestrel keeps serving requests exactly as today for local dev.
+// Only takes over when this same executable is actually invoked as a Lambda function.
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
 builder.Services.AddOpenApi();
 builder.Services.AddApplicationServices();

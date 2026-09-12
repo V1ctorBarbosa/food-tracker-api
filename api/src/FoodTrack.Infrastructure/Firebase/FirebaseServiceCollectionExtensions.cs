@@ -1,3 +1,4 @@
+using System.Text;
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
@@ -20,7 +21,7 @@ public static class FirebaseServiceCollectionExtensions
         services.AddSingleton(sp =>
         {
             var options = sp.GetRequiredService<IOptions<FirebaseOptions>>().Value;
-            return CredentialFactory.FromFile<ServiceAccountCredential>(options.CredentialsPath).ToGoogleCredential();
+            return LoadCredential(options);
         });
 
         services.AddSingleton(sp =>
@@ -48,5 +49,26 @@ public static class FirebaseServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// CredentialsJson wins when set (e.g. a Lambda environment variable, where there's no file on
+    /// disk to point at); otherwise falls back to reading CredentialsPath, as local dev always has.
+    /// </summary>
+    private static GoogleCredential LoadCredential(FirebaseOptions options)
+    {
+        if (!string.IsNullOrEmpty(options.CredentialsJson))
+        {
+            using var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(options.CredentialsJson));
+            return CredentialFactory.FromStream<ServiceAccountCredential>(jsonStream).ToGoogleCredential();
+        }
+
+        if (!string.IsNullOrEmpty(options.CredentialsPath))
+        {
+            return CredentialFactory.FromFile<ServiceAccountCredential>(options.CredentialsPath).ToGoogleCredential();
+        }
+
+        throw new InvalidOperationException(
+            $"Firebase credentials are not configured -- set either {nameof(FirebaseOptions.CredentialsPath)} or {nameof(FirebaseOptions.CredentialsJson)}.");
     }
 }

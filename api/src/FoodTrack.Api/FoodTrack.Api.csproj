@@ -11,6 +11,8 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
     <!-- Pinned above the transitive 2.0.0 pulled in by Microsoft.AspNetCore.OpenApi 10.0.2, which has a known high-severity vulnerability (GHSA-v5pm-xwqc-g5wc). -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
+    <!-- Lets this same Minimal API run as an AWS Lambda function (see AddAWSLambdaHosting in Program.cs) with zero change to local dev, where it's a no-op and Kestrel serves as usual. -->
+    <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="2.2.1" />
   </ItemGroup>
 
   <ItemGroup>
