@@ -31,6 +31,8 @@ data "aws_iam_policy_document" "github_actions_deploy" {
       "lambda:GetFunctionCodeSigningConfig",
       "lambda:GetFunctionConcurrency",
       "lambda:GetRuntimeManagementConfig",
+      "lambda:AddPermission",
+      "lambda:RemovePermission",
       "lambda:TagResource",
       "lambda:UntagResource",
       "lambda:ListTags",
