@@ -1,7 +1,7 @@
 variable "aws_region" {
-  description = "AWS region everything is deployed to. Must match the bootstrap config."
+  description = "AWS region everything is deployed to. Must match the bootstrap config, and must be the account's selected sign-up region: the AWS-managed SCP denies Lambda in every other region, us-east-1 included."
   type        = string
-  default     = "us-east-1"
+  default     = "us-east-2"
 }
 
 variable "lambda_function_name" {
