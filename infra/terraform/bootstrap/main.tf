@@ -2,7 +2,7 @@ terraform {
   required_version = ">= 1.7"
 
   cloud {
-    organization = "food-track"
+    organization = "v1ctorbarbosa"
 
     workspaces {
       name = "food-track-api-bootstrap"

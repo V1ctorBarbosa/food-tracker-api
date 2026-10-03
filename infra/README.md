@@ -21,7 +21,7 @@ You only do this once. After it's done, every future deploy is just `git push`.
 ### 1. Terraform Cloud (free, no card)
 
 1. Create an account at [app.terraform.io](https://app.terraform.io) and an organization
-   (`organization = "food-track"` is already set in both `main.tf` files — rename the org to
+   (`organization = "v1ctorbarbosa"` is already set in both `main.tf` files — rename the org to
    match if you called it something else).
 2. Create two workspaces in it: `food-track-api-bootstrap` and `food-track-api`, choosing the
    **CLI-Driven Workflow** for both (not "Version control workflow" — Terraform runs on your
