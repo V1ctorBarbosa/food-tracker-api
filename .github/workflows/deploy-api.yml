@@ -52,8 +52,15 @@ jobs:
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
+      # The workspace runs in Local execution mode, so Terraform Cloud workspace variables are
+      # ignored; inputs must come from here, and TF_INPUT=false makes a missing one fail instead of
+      # waiting forever for a prompt nobody can answer.
       - name: Terraform apply
         working-directory: infra/terraform/app
+        env:
+          TF_INPUT: "false"
+          TF_VAR_firebase_credentials_json: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
+          TF_VAR_lambda_execution_role_arn: ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}
         run: |
           terraform init
           terraform apply -auto-approve -var="lambda_zip_path=$LAMBDA_ZIP_PATH"

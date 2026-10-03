@@ -76,17 +76,12 @@ Note the outputs: `github_actions_access_key_id`, `lambda_execution_role_arn`, a
 if you lose it, `terraform taint aws_iam_access_key.github_actions_deploy` and re-apply to
 generate a new one).
 
-### 5. Configure the app workspace
+### 5. Set the Terraform Cloud execution mode to Local
 
-In the Terraform Cloud UI, on the `food-track-api` workspace, add these workspace variables:
-
-| Key | Value | Category | Sensitive |
-|---|---|---|---|
-| `lambda_execution_role_arn` | the bootstrap output | Terraform variable | no |
-| `firebase_credentials_json` | contents of your `firebase-service-account.json` | Terraform variable | **yes** |
-
-(`firebase_project_id` and `lambda_function_name` already default correctly in `variables.tf` —
-only override them here if you want different values.)
+On both workspaces, *Settings → General → Execution mode → Local*. Terraform then runs on your
+machine and in GitHub Actions, and Terraform Cloud only stores state. In this mode workspace
+variables set in the Terraform Cloud UI are ignored, so the app config's inputs come from the
+GitHub secrets below instead.
 
 ### 6. Add GitHub repo secrets
 
@@ -97,6 +92,10 @@ On `V1ctorBarbosa/food-tracker-api` → *Settings → Secrets and variables → 
 | `AWS_ACCESS_KEY_ID` | the `github_actions_access_key_id` output from step 4 |
 | `AWS_SECRET_ACCESS_KEY` | the `github_actions_secret_access_key` output from step 4 |
 | `TF_API_TOKEN` | the same Terraform Cloud token from step 1 |
+| `LAMBDA_EXECUTION_ROLE_ARN` | the `lambda_execution_role_arn` output from step 4 |
+| `FIREBASE_CREDENTIALS_JSON` | full contents of your `firebase-service-account.json` |
+
+(`firebase_project_id` and `lambda_function_name` already default correctly in `variables.tf`.)
 
 That's it. Push to `master` and the `Deploy API` workflow builds, tests, and deploys.
 
