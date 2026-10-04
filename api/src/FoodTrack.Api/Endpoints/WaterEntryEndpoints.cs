@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FoodTrack.Api.Authentication;
+using FoodTrack.Application.Common;
 using FoodTrack.Application.WaterEntries;
 using FoodTrack.Domain.WaterEntries;
 
@@ -26,10 +27,11 @@ public static class WaterEntryEndpoints
         WaterEntryService waterEntryService,
         DateOnly from,
         DateOnly to,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int utcOffsetMinutes = 0)
     {
         var userId = user.GetAuthenticatedUserId();
-        var entries = await waterEntryService.ListAsync(userId, from, to, cancellationToken);
+        var entries = await waterEntryService.ListAsync(userId, from, to, UtcOffset.FromMinutes(utcOffsetMinutes), cancellationToken);
         return Results.Ok(entries);
     }
 

@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Users;
 using FoodTrack.Domain.WeightEntries;
@@ -17,9 +18,10 @@ public sealed class WeightEntryService
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var entries = await _weightEntryRepository.ListByUserAsync(userId, from, to, cancellationToken);
+        var entries = await _weightEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
         return entries.Select(ToDto).ToList();
     }
 
@@ -28,7 +30,8 @@ public sealed class WeightEntryService
         CreateWeightEntryRequest request,
         CancellationToken cancellationToken = default)
     {
-        var entry = WeightEntry.Create(WeightEntryId.NewId(), userId, DateTimeOffset.UtcNow, new Kilograms(request.WeightKilograms));
+        var loggedAt = LoggedAtPolicy.Resolve(request.LoggedAt, DateTimeOffset.UtcNow);
+        var entry = WeightEntry.Create(WeightEntryId.NewId(), userId, loggedAt, new Kilograms(request.WeightKilograms));
         await _weightEntryRepository.AddAsync(entry, cancellationToken);
         return ToDto(entry);
     }

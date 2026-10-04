@@ -15,6 +15,7 @@ public interface IWaterEntryRepository
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default);
 
     Task AddAsync(WaterEntry entry, CancellationToken cancellationToken = default);

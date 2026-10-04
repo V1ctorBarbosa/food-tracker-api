@@ -15,6 +15,7 @@ public interface IMealRepository
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default);
 
     /// <summary>Upserts the meal and its items as a single aggregate.</summary>

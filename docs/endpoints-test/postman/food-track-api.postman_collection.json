@@ -70,12 +70,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/weight-entries?from=2026-09-01&to=2026-09-07",
+              "raw": "{{baseUrl}}/weight-entries?from=2026-09-01&to=2026-09-07&utcOffsetMinutes=-180",
               "host": ["{{baseUrl}}"],
               "path": ["weight-entries"],
               "query": [
                 { "key": "from", "value": "2026-09-01" },
-                { "key": "to", "value": "2026-09-07" }
+                { "key": "to", "value": "2026-09-07" },
+                { "key": "utcOffsetMinutes", "value": "-180", "description": "The caller's UTC offset in minutes (e.g. -180 for Brasilia). Days are grouped by the caller's own calendar day instead of UTC. Optional, defaults to 0." }
               ]
             }
           }
@@ -86,7 +87,7 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/weight-entries", "host": ["{{baseUrl}}"], "path": ["weight-entries"] },
-            "body": { "mode": "raw", "raw": "{\n  \"weightKilograms\": 87.6\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"weightKilograms\": 87.6,\n  \"loggedAt\": \"2026-09-03T07:00:00-03:00\"\n}" },
             "description": "LoggedAt is set to the current server time and returned in the response; there is no date field on create."
           }
         },
@@ -119,12 +120,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/water-entries?from=2026-09-01&to=2026-09-07",
+              "raw": "{{baseUrl}}/water-entries?from=2026-09-01&to=2026-09-07&utcOffsetMinutes=-180",
               "host": ["{{baseUrl}}"],
               "path": ["water-entries"],
               "query": [
                 { "key": "from", "value": "2026-09-01" },
-                { "key": "to", "value": "2026-09-07" }
+                { "key": "to", "value": "2026-09-07" },
+                { "key": "utcOffsetMinutes", "value": "-180", "description": "The caller's UTC offset in minutes (e.g. -180 for Brasilia). Days are grouped by the caller's own calendar day instead of UTC. Optional, defaults to 0." }
               ]
             }
           }
@@ -204,12 +206,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/meals?from=2026-09-01&to=2026-09-07",
+              "raw": "{{baseUrl}}/meals?from=2026-09-01&to=2026-09-07&utcOffsetMinutes=-180",
               "host": ["{{baseUrl}}"],
               "path": ["meals"],
               "query": [
                 { "key": "from", "value": "2026-09-01" },
-                { "key": "to", "value": "2026-09-07" }
+                { "key": "to", "value": "2026-09-07" },
+                { "key": "utcOffsetMinutes", "value": "-180", "description": "The caller's UTC offset in minutes (e.g. -180 for Brasilia). Days are grouped by the caller's own calendar day instead of UTC. Optional, defaults to 0." }
               ]
             }
           }
@@ -230,7 +233,7 @@
             "url": { "raw": "{{baseUrl}}/meals", "host": ["{{baseUrl}}"], "path": ["meals"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mealType\": \"Lunch\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 200,\n      \"unit\": \"Gram\",\n      \"foodServingId\": null,\n      \"servingCount\": null\n    }\n  ]\n}"
+              "raw": "{\n  \"mealType\": \"Lunch\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 200,\n      \"unit\": \"Gram\",\n      \"foodServingId\": null,\n      \"servingCount\": null\n    }\n  ],\n  \"loggedAt\": \"2026-09-03T19:30:00-03:00\"\n}"
             },
             "description": "Each item needs exactly one of two shapes: (quantity + unit) for a raw amount, or (foodServingId + servingCount) to log by a named serving from that food's servings list (e.g. \"1 can\"). unit: Gram|Kilogram|Milliliter|Liter. mealType: Breakfast|Lunch|Dinner|Snack. Nutrition is computed and snapshotted server-side -- do not send calories/protein/carbs/fat. LoggedAt is set to the current server time and returned in the response; there is no date field on create."
           }
@@ -267,12 +270,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/dashboard?from=2026-09-01&to=2026-09-30",
+              "raw": "{{baseUrl}}/dashboard?from=2026-09-01&to=2026-09-30&utcOffsetMinutes=-180",
               "host": ["{{baseUrl}}"],
               "path": ["dashboard"],
               "query": [
                 { "key": "from", "value": "2026-09-01" },
-                { "key": "to", "value": "2026-09-30" }
+                { "key": "to", "value": "2026-09-30" },
+                { "key": "utcOffsetMinutes", "value": "-180", "description": "The caller's UTC offset in minutes (e.g. -180 for Brasilia). Days are grouped by the caller's own calendar day instead of UTC. Optional, defaults to 0." }
               ]
             },
             "description": "Aggregates meals, water entries and weight entries into one payload for charting. Returns 404 until the caller has upserted a profile at least once (Upsert Profile). currentWeightKilograms is the most recent weight entry the user has ever logged, regardless of from/to -- it answers \"what do I weigh right now\", not \"what did I weigh in this window\". weightHistory only contains days with an actual entry (sparse, since weight is not expected to be logged daily); nutritionHistory has exactly one entry per calendar day in [from, to], zero-filled for days with no meals or water logged, so charts render a continuous line without gap-filling client-side."

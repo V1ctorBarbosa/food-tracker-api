@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Application.Meals;
 using FoodTrack.Application.Users;
 using FoodTrack.Application.WaterEntries;
@@ -31,6 +32,7 @@ public sealed class DashboardService
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
@@ -39,13 +41,13 @@ public sealed class DashboardService
             return null;
         }
 
-        var meals = await _mealRepository.ListByUserAsync(userId, from, to, cancellationToken);
-        var waterEntries = await _waterEntryRepository.ListByUserAsync(userId, from, to, cancellationToken);
-        var weightEntries = await _weightEntryRepository.ListByUserAsync(userId, from, to, cancellationToken);
+        var meals = await _mealRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
+        var waterEntries = await _waterEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
+        var weightEntries = await _weightEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
         var mostRecentWeightEntry = await _weightEntryRepository.GetMostRecentAsync(userId, cancellationToken);
 
         var weightHistory = weightEntries
-            .Select(entry => new WeightHistoryEntryDto(DateOnly.FromDateTime(entry.LoggedAt.UtcDateTime), entry.Weight.Value))
+            .Select(entry => new WeightHistoryEntryDto(LocalDayRange.DateOf(entry.LoggedAt, utcOffset), entry.Weight.Value))
             .ToList();
 
         return new DashboardDto(
@@ -57,17 +59,18 @@ public sealed class DashboardService
             user.DailyCarbsTarget?.Value,
             user.DailyFatTarget?.Value,
             weightHistory,
-            BuildNutritionHistory(from, to, meals, waterEntries));
+            BuildNutritionHistory(from, to, utcOffset, meals, waterEntries));
     }
 
     private static List<NutritionHistoryEntryDto> BuildNutritionHistory(
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         IReadOnlyList<Meal> meals,
         IReadOnlyList<WaterEntry> waterEntries)
     {
         var mealTotalsByDate = meals
-            .GroupBy(meal => DateOnly.FromDateTime(meal.LoggedAt.UtcDateTime))
+            .GroupBy(meal => LocalDayRange.DateOf(meal.LoggedAt, utcOffset))
             .ToDictionary(
                 group => group.Key,
                 group => (
@@ -77,7 +80,7 @@ public sealed class DashboardService
                     Fat: group.Sum(meal => meal.TotalFat.Value)));
 
         var waterTotalByDate = waterEntries
-            .GroupBy(entry => DateOnly.FromDateTime(entry.LoggedAt.UtcDateTime))
+            .GroupBy(entry => LocalDayRange.DateOf(entry.LoggedAt, utcOffset))
             .ToDictionary(group => group.Key, group => group.Sum(entry => entry.Amount.Value));
 
         var nutritionHistory = new List<NutritionHistoryEntryDto>();

@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Application.WaterEntries;
 using FoodTrack.Domain.Users;
 using FoodTrack.Domain.WaterEntries;
@@ -37,15 +38,15 @@ public sealed class FirestoreWaterEntryRepository : IWaterEntryRepository
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var fromUtc = new DateTimeOffset(DateTime.SpecifyKind(from.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
-        var toExclusiveUtc = new DateTimeOffset(DateTime.SpecifyKind(to.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
+        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(from, to, utcOffset);
 
         var query = _firestoreDb.Collection(CollectionName)
             .WhereEqualTo(nameof(WaterEntryDocument.UserId), userId.Value)
-            .WhereGreaterThanOrEqualTo(nameof(WaterEntryDocument.LoggedAt), fromUtc)
-            .WhereLessThan(nameof(WaterEntryDocument.LoggedAt), toExclusiveUtc);
+            .WhereGreaterThanOrEqualTo(nameof(WaterEntryDocument.LoggedAt), fromInclusive)
+            .WhereLessThan(nameof(WaterEntryDocument.LoggedAt), toExclusive);
 
         var snapshot = await query.GetSnapshotAsync(cancellationToken);
 

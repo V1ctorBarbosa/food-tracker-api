@@ -19,6 +19,53 @@ public sealed class WeightEntryServiceTest
     }
 
     [Fact]
+    public async Task ListAsync_PassesTheUtcOffsetToTheRepository()
+    {
+        // Arrange
+        var from = new DateOnly(2026, 9, 1);
+        var to = new DateOnly(2026, 9, 7);
+        var saoPaulo = TimeSpan.FromHours(-3);
+        _weightEntryRepository.ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>()).Returns([]);
+
+        // Act
+        await _sut.ListAsync(_userId, from, to, saoPaulo);
+
+        // Assert
+        await _weightEntryRepository.Received(1).ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_UsesTheRequestedLoggedAt_WhenTheEntryIsBackDated()
+    {
+        // Arrange
+        var threeDaysAgo = DateTimeOffset.UtcNow.AddDays(-3);
+        var request = new CreateWeightEntryRequest(87.6, threeDaysAgo);
+
+        // Act
+        var result = await _sut.CreateAsync(_userId, request);
+
+        // Assert
+        result.LoggedAt.Should().Be(threeDaysAgo);
+        await _weightEntryRepository.Received(1).AddAsync(
+            Arg.Is<WeightEntry>(entry => entry.LoggedAt == threeDaysAgo),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_Throws_AndSavesNothing_WhenLoggedAtIsInTheFuture()
+    {
+        // Arrange
+        var request = new CreateWeightEntryRequest(87.6, DateTimeOffset.UtcNow.AddDays(1));
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _weightEntryRepository.DidNotReceive().AddAsync(Arg.Any<WeightEntry>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ListAsync_ReturnsMappedDtos_OrderedByRepository()
     {
         // Arrange
@@ -27,11 +74,11 @@ public sealed class WeightEntryServiceTest
         var loggedAt = new DateTimeOffset(2026, 9, 1, 7, 10, 0, TimeSpan.Zero);
         var entry = WeightEntry.Create(WeightEntryId.NewId(), _userId, loggedAt, new Kilograms(87.6));
 
-        _weightEntryRepository.ListByUserAsync(_userId, from, to, Arg.Any<CancellationToken>())
+        _weightEntryRepository.ListByUserAsync(_userId, from, to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns([entry]);
 
         // Act
-        var result = await _sut.ListAsync(_userId, from, to);
+        var result = await _sut.ListAsync(_userId, from, to, TimeSpan.Zero);
 
         // Assert
         result.Should().ContainSingle();
@@ -48,7 +95,7 @@ public sealed class WeightEntryServiceTest
         // Act
         var result = await _sut.CreateAsync(_userId, request);
 
-        // Assert -- LoggedAt is assigned server-side (DateTimeOffset.UtcNow), not client-supplied.
+        // Assert -- with no LoggedAt requested, the server stamps the current time.
         result.LoggedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
         result.WeightKilograms.Should().Be(87.6);
         await _weightEntryRepository.Received(1).AddAsync(

@@ -22,16 +22,88 @@ public sealed class MealServiceTest
     }
 
     [Fact]
+    public async Task ListAsync_PassesTheUtcOffsetToTheRepository()
+    {
+        // Arrange
+        var from = new DateOnly(2026, 9, 1);
+        var to = new DateOnly(2026, 9, 7);
+        var saoPaulo = TimeSpan.FromHours(-3);
+        _mealRepository.ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>()).Returns([]);
+
+        // Act
+        await _sut.ListAsync(_userId, from, to, saoPaulo);
+
+        // Assert
+        await _mealRepository.Received(1).ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_UsesTheRequestedLoggedAt_WhenTheMealIsBackDated()
+    {
+        // Arrange
+        var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
+        _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
+        var threeDaysAgo = DateTimeOffset.UtcNow.AddDays(-3);
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)],
+            threeDaysAgo);
+
+        // Act
+        var result = await _sut.CreateAsync(_userId, request);
+
+        // Assert
+        result.LoggedAt.Should().Be(threeDaysAgo);
+        await _mealRepository.Received(1).AddAsync(Arg.Is<Meal>(meal => meal.LoggedAt == threeDaysAgo), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_UsesTheCurrentTime_WhenNoLoggedAtIsRequested()
+    {
+        // Arrange
+        var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
+        _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)]);
+
+        // Act
+        var result = await _sut.CreateAsync(_userId, request);
+
+        // Assert
+        result.LoggedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task CreateAsync_Throws_AndSavesNothing_WhenLoggedAtIsInTheFuture()
+    {
+        // Arrange
+        var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
+        _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)],
+            DateTimeOffset.UtcNow.AddDays(1));
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ListAsync_ReturnsMappedDtos_WithTotals()
     {
         // Arrange
         var from = new DateOnly(2026, 9, 1);
         var to = new DateOnly(2026, 9, 7);
         var meal = CreateMeal([CreateItem(260, 5.4, 56, 0.6)]);
-        _mealRepository.ListByUserAsync(_userId, from, to, Arg.Any<CancellationToken>()).Returns([meal]);
+        _mealRepository.ListByUserAsync(_userId, from, to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([meal]);
 
         // Act
-        var result = await _sut.ListAsync(_userId, from, to);
+        var result = await _sut.ListAsync(_userId, from, to, TimeSpan.Zero);
 
         // Assert
         result.Should().ContainSingle();

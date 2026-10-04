@@ -19,6 +19,36 @@ public sealed class WaterEntryServiceTest
     }
 
     [Fact]
+    public async Task ListAsync_PassesTheUtcOffsetToTheRepository()
+    {
+        // Arrange
+        var from = new DateOnly(2026, 9, 1);
+        var to = new DateOnly(2026, 9, 7);
+        var saoPaulo = TimeSpan.FromHours(-3);
+        _waterEntryRepository.ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>()).Returns([]);
+
+        // Act
+        await _sut.ListAsync(_userId, from, to, saoPaulo);
+
+        // Assert
+        await _waterEntryRepository.Received(1).ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_Throws_AndSavesNothing_WhenLoggedAtIsInTheFuture()
+    {
+        // Arrange
+        var request = new CreateWaterEntryRequest(DateTimeOffset.UtcNow.AddDays(1), 250);
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _waterEntryRepository.DidNotReceive().AddAsync(Arg.Any<WaterEntry>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ListAsync_ReturnsMappedDtos()
     {
         // Arrange
@@ -27,11 +57,11 @@ public sealed class WaterEntryServiceTest
         var loggedAt = new DateTimeOffset(2026, 9, 3, 8, 0, 0, TimeSpan.Zero);
         var entry = WaterEntry.Create(WaterEntryId.NewId(), _userId, loggedAt, new Milliliters(250));
 
-        _waterEntryRepository.ListByUserAsync(_userId, from, to, Arg.Any<CancellationToken>())
+        _waterEntryRepository.ListByUserAsync(_userId, from, to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns([entry]);
 
         // Act
-        var result = await _sut.ListAsync(_userId, from, to);
+        var result = await _sut.ListAsync(_userId, from, to, TimeSpan.Zero);
 
         // Assert
         result.Should().ContainSingle();
