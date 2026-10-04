@@ -7,8 +7,10 @@ resource "aws_lambda_function" "api" {
   handler = "FoodTrack.Api"
   runtime = "dotnet10"
 
-  timeout     = 30
-  memory_size = 512
+  timeout = 30
+  # Lambda hands out CPU in proportion to memory, so more memory shortens the cold start (runtime
+  # boot, dependency injection, first Firestore call) as well as every warm request.
+  memory_size = 1024
 
   filename         = var.lambda_zip_path
   source_code_hash = filebase64sha256(var.lambda_zip_path)

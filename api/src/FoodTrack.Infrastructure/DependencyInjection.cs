@@ -6,6 +6,7 @@ using FoodTrack.Application.WeightEntries;
 using FoodTrack.Infrastructure.Firebase;
 using FoodTrack.Infrastructure.Foods;
 using FoodTrack.Infrastructure.Meals;
+using FoodTrack.Infrastructure.Startup;
 using FoodTrack.Infrastructure.Users;
 using FoodTrack.Infrastructure.WaterEntries;
 using FoodTrack.Infrastructure.WeightEntries;
@@ -22,6 +23,8 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddFirebaseAdmin(configuration);
+        services.AddSingleton<IStartupWarmUp, FirestoreWarmUp>();
+        services.AddHostedService<StartupWarmUpHostedService>();
         services.AddScoped<IUserRepository, FirestoreUserRepository>();
         services.AddScoped<IWeightEntryRepository, FirestoreWeightEntryRepository>();
         services.AddScoped<IWaterEntryRepository, FirestoreWaterEntryRepository>();

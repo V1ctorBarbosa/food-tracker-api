@@ -30,12 +30,15 @@ jobs:
 
       - run: dotnet tool install -g Amazon.Lambda.Tools
 
+      # ReadyToRun ships pre-compiled native code next to the IL, so a cold start skips most of the
+      # JIT work instead of compiling the whole request path on the first call.
       - name: Package the Lambda function
         run: |
           dotnet lambda package \
             --project-location api/src/FoodTrack.Api \
             --configuration Release \
             --output-package "$LAMBDA_ZIP_PATH" \
+            --msbuild-parameters "/p:PublishReadyToRun=true" \
             --disable-interactive true
 
       # This account is on AWS's "Free Plan", which blocks creating an OIDC provider (an AWS
