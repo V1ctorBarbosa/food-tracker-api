@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FoodTrack.Application.Common;
 using FoodTrack.Application.Foods;
 using FoodTrack.Application.Meals;
 using FoodTrack.Domain.Common;
@@ -25,16 +26,15 @@ public sealed class MealServiceTest
     public async Task ListAsync_PassesTheUtcOffsetToTheRepository()
     {
         // Arrange
-        var from = new DateOnly(2026, 9, 1);
-        var to = new DateOnly(2026, 9, 7);
+        var dayRange = new DayRange(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 7));
         var saoPaulo = TimeSpan.FromHours(-3);
-        _mealRepository.ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>()).Returns([]);
+        _mealRepository.ListByUserAsync(_userId, dayRange, saoPaulo, Arg.Any<CancellationToken>()).Returns([]);
 
         // Act
-        await _sut.ListAsync(_userId, from, to, saoPaulo);
+        await _sut.ListAsync(_userId, dayRange, saoPaulo);
 
         // Assert
-        await _mealRepository.Received(1).ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>());
+        await _mealRepository.Received(1).ListByUserAsync(_userId, dayRange, saoPaulo, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -97,13 +97,12 @@ public sealed class MealServiceTest
     public async Task ListAsync_ReturnsMappedDtos_WithTotals()
     {
         // Arrange
-        var from = new DateOnly(2026, 9, 1);
-        var to = new DateOnly(2026, 9, 7);
+        var dayRange = new DayRange(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 7));
         var meal = CreateMeal([CreateItem(260, 5.4, 56, 0.6)]);
-        _mealRepository.ListByUserAsync(_userId, from, to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([meal]);
+        _mealRepository.ListByUserAsync(_userId, dayRange, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([meal]);
 
         // Act
-        var result = await _sut.ListAsync(_userId, from, to, TimeSpan.Zero);
+        var result = await _sut.ListAsync(_userId, dayRange, TimeSpan.Zero);
 
         // Assert
         result.Should().ContainSingle();
@@ -178,6 +177,25 @@ public sealed class MealServiceTest
         result.Items[0].Calories.Should().Be(147);
         result.Items[0].Quantity.Should().Be(350);
         result.Items[0].Unit.Should().Be(nameof(MeasurementUnit.Milliliter));
+    }
+
+    [Fact]
+    public async Task CreateAsync_Throws_WithoutReadingAnyFood_WhenTheMealHasTooManyItems()
+    {
+        // Arrange
+        var itemRequests = Enumerable
+            .Range(0, Meal.MaximumItemCount + 1)
+            .Select(_ => new MealItemRequest(FoodId.NewId().Value, 100, nameof(MeasurementUnit.Gram), null, null))
+            .ToList();
+        var request = new CreateMealRequest(nameof(MealType.Lunch), itemRequests);
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _foodRepository.DidNotReceive().GetByIdAsync(Arg.Any<FoodId>(), Arg.Any<CancellationToken>());
+        await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

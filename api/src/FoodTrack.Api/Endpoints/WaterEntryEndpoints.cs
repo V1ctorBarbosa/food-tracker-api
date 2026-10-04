@@ -31,7 +31,7 @@ public static class WaterEntryEndpoints
         int utcOffsetMinutes = 0)
     {
         var userId = user.GetAuthenticatedUserId();
-        var entries = await waterEntryService.ListAsync(userId, from, to, UtcOffset.FromMinutes(utcOffsetMinutes), cancellationToken);
+        var entries = await waterEntryService.ListAsync(userId, new DayRange(from, to), UtcOffset.FromMinutes(utcOffsetMinutes), cancellationToken);
         return Results.Ok(entries);
     }
 

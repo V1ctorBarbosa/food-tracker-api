@@ -30,8 +30,7 @@ public sealed class DashboardService
 
     public async Task<DashboardDto?> GetDashboardAsync(
         UserId userId,
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
@@ -41,9 +40,9 @@ public sealed class DashboardService
             return null;
         }
 
-        var meals = await _mealRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
-        var waterEntries = await _waterEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
-        var weightEntries = await _weightEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
+        var meals = await _mealRepository.ListByUserAsync(userId, dayRange, utcOffset, cancellationToken);
+        var waterEntries = await _waterEntryRepository.ListByUserAsync(userId, dayRange, utcOffset, cancellationToken);
+        var weightEntries = await _weightEntryRepository.ListByUserAsync(userId, dayRange, utcOffset, cancellationToken);
         var mostRecentWeightEntry = await _weightEntryRepository.GetMostRecentAsync(userId, cancellationToken);
 
         var weightHistory = weightEntries
@@ -59,12 +58,11 @@ public sealed class DashboardService
             user.DailyCarbsTarget?.Value,
             user.DailyFatTarget?.Value,
             weightHistory,
-            BuildNutritionHistory(from, to, utcOffset, meals, waterEntries));
+            BuildNutritionHistory(dayRange, utcOffset, meals, waterEntries));
     }
 
     private static List<NutritionHistoryEntryDto> BuildNutritionHistory(
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         IReadOnlyList<Meal> meals,
         IReadOnlyList<WaterEntry> waterEntries)
@@ -84,7 +82,7 @@ public sealed class DashboardService
             .ToDictionary(group => group.Key, group => group.Sum(entry => entry.Amount.Value));
 
         var nutritionHistory = new List<NutritionHistoryEntryDto>();
-        for (var date = from; date <= to; date = date.AddDays(1))
+        for (var date = dayRange.From; date <= dayRange.To; date = date.AddDays(1))
         {
             var mealTotals = mealTotalsByDate.GetValueOrDefault(date);
             nutritionHistory.Add(new NutritionHistoryEntryDto(

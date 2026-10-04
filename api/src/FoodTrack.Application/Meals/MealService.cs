@@ -20,12 +20,11 @@ public sealed class MealService
 
     public async Task<IReadOnlyList<MealDto>> ListAsync(
         UserId userId,
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var meals = await _mealRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
+        var meals = await _mealRepository.ListByUserAsync(userId, dayRange, utcOffset, cancellationToken);
         return meals.Select(ToDto).ToList();
     }
 
@@ -89,6 +88,8 @@ public sealed class MealService
         IReadOnlyList<MealItemRequest> itemRequests,
         CancellationToken cancellationToken)
     {
+        Meal.EnsureItemCountIsAllowed(itemRequests.Count);
+
         var items = new List<MealItem>(itemRequests.Count);
         foreach (var itemRequest in itemRequests)
         {

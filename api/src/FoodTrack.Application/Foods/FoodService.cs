@@ -11,6 +11,9 @@ public sealed class FoodService
     // This is a backend safety net regardless of client; the real fix is debouncing client-side.
     private const int MinimumQueryLength = 3;
 
+    // No food name is this long; a longer query can only be noise sent to the external sources.
+    private const int MaximumQueryLength = 100;
+
     private readonly IFoodRepository _foodRepository;
     private readonly IExternalFoodSource _externalFoodSource;
 
@@ -40,9 +43,15 @@ public sealed class FoodService
     /// </summary>
     public async Task<IReadOnlyList<FoodDto>> SearchAsync(UserId userId, string query, CancellationToken cancellationToken = default)
     {
-        if (query.Trim().Length < MinimumQueryLength)
+        var trimmedQueryLength = query.Trim().Length;
+        if (trimmedQueryLength < MinimumQueryLength)
         {
             throw new ArgumentException($"Query must be at least {MinimumQueryLength} characters.", nameof(query));
+        }
+
+        if (trimmedQueryLength > MaximumQueryLength)
+        {
+            throw new ArgumentException($"Query must be at most {MaximumQueryLength} characters.", nameof(query));
         }
 
         var cachedFoods = await _foodRepository.SearchByNameAsync(query, cancellationToken);

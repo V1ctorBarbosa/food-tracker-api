@@ -39,6 +39,43 @@ public sealed class MealTest
     }
 
     [Fact]
+    public void Create_Throws_WhenItemsExceedTheMaximumItemCount()
+    {
+        // Arrange
+        var items = Enumerable.Range(0, Meal.MaximumItemCount + 1).Select(_ => CreateItem(100, 1, 1, 1)).ToList();
+
+        // Act
+        var act = () => Meal.Create(MealId.NewId(), new UserId("firebase-uid-123"), DateTimeOffset.UtcNow, MealType.Lunch, items);
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(Meal.MaximumItemCount)]
+    public void EnsureItemCountIsAllowed_DoesNotThrow_WhenTheCountIsWithinTheLimit(int itemCount)
+    {
+        // Act
+        var act = () => Meal.EnsureItemCountIsAllowed(itemCount);
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(Meal.MaximumItemCount + 1)]
+    public void EnsureItemCountIsAllowed_Throws_WhenTheCountIsOutsideTheLimit(int itemCount)
+    {
+        // Act
+        var act = () => Meal.EnsureItemCountIsAllowed(itemCount);
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public void Totals_SumAcrossAllItems()
     {
         // Arrange — docs section 25: rice + chicken + beans summed into daily totals.

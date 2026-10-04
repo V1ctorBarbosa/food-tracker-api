@@ -16,12 +16,11 @@ public sealed class WaterEntryService
 
     public async Task<IReadOnlyList<WaterEntryDto>> ListAsync(
         UserId userId,
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var entries = await _waterEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
+        var entries = await _waterEntryRepository.ListByUserAsync(userId, dayRange, utcOffset, cancellationToken);
         return entries.Select(ToDto).ToList();
     }
 

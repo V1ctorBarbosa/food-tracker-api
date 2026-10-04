@@ -16,12 +16,11 @@ public sealed class WeightEntryService
 
     public async Task<IReadOnlyList<WeightEntryDto>> ListAsync(
         UserId userId,
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var entries = await _weightEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
+        var entries = await _weightEntryRepository.ListByUserAsync(userId, dayRange, utcOffset, cancellationToken);
         return entries.Select(ToDto).ToList();
     }
 

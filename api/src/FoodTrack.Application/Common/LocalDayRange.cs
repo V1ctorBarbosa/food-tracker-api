@@ -8,10 +8,10 @@ namespace FoodTrack.Application.Common;
 public static class LocalDayRange
 {
     /// <returns>The instant the first day starts (inclusive) and the instant after the last day ends (exclusive).</returns>
-    public static (DateTimeOffset FromInclusive, DateTimeOffset ToExclusive) ToInstants(DateOnly from, DateOnly to, TimeSpan utcOffset)
+    public static (DateTimeOffset FromInclusive, DateTimeOffset ToExclusive) ToInstants(DayRange dayRange, TimeSpan utcOffset)
     {
-        var fromInclusive = new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue), utcOffset);
-        var toExclusive = new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue), utcOffset);
+        var fromInclusive = new DateTimeOffset(dayRange.From.ToDateTime(TimeOnly.MinValue), utcOffset);
+        var toExclusive = new DateTimeOffset(dayRange.To.AddDays(1).ToDateTime(TimeOnly.MinValue), utcOffset);
 
         return (fromInclusive, toExclusive);
     }

@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Domain.Users;
 using FoodTrack.Domain.WaterEntries;
 
@@ -13,8 +14,7 @@ public interface IWaterEntryRepository
 
     Task<IReadOnlyList<WaterEntry>> ListByUserAsync(
         UserId userId,
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default);
 

@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Domain.Meals;
 using FoodTrack.Domain.Users;
 
@@ -13,8 +14,7 @@ public interface IMealRepository
 
     Task<IReadOnlyList<Meal>> ListByUserAsync(
         UserId userId,
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default);
 
