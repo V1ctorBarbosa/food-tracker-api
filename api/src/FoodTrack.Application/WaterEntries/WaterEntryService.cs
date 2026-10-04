@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Users;
 using FoodTrack.Domain.WaterEntries;
@@ -17,9 +18,10 @@ public sealed class WaterEntryService
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var entries = await _waterEntryRepository.ListByUserAsync(userId, from, to, cancellationToken);
+        var entries = await _waterEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
         return entries.Select(ToDto).ToList();
     }
 
@@ -28,7 +30,8 @@ public sealed class WaterEntryService
         CreateWaterEntryRequest request,
         CancellationToken cancellationToken = default)
     {
-        var entry = WaterEntry.Create(WaterEntryId.NewId(), userId, request.LoggedAt, new Milliliters(request.AmountMilliliters));
+        var loggedAt = LoggedAtPolicy.Resolve(request.LoggedAt, DateTimeOffset.UtcNow);
+        var entry = WaterEntry.Create(WaterEntryId.NewId(), userId, loggedAt, new Milliliters(request.AmountMilliliters));
         await _waterEntryRepository.AddAsync(entry, cancellationToken);
         return ToDto(entry);
     }

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FoodTrack.Api.Authentication;
+using FoodTrack.Application.Common;
 using FoodTrack.Application.Dashboard;
 
 namespace FoodTrack.Api.Endpoints;
@@ -22,10 +23,11 @@ public static class DashboardEndpoints
         DashboardService dashboardService,
         DateOnly from,
         DateOnly to,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int utcOffsetMinutes = 0)
     {
         var userId = user.GetAuthenticatedUserId();
-        var dashboard = await dashboardService.GetDashboardAsync(userId, from, to, cancellationToken);
+        var dashboard = await dashboardService.GetDashboardAsync(userId, from, to, UtcOffset.FromMinutes(utcOffsetMinutes), cancellationToken);
 
         if (dashboard is null)
         {

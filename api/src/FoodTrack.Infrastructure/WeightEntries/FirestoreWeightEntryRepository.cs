@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Application.WeightEntries;
 using FoodTrack.Domain.Users;
 using FoodTrack.Domain.WeightEntries;
@@ -37,15 +38,15 @@ public sealed class FirestoreWeightEntryRepository : IWeightEntryRepository
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var fromUtc = new DateTimeOffset(DateTime.SpecifyKind(from.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
-        var toExclusiveUtc = new DateTimeOffset(DateTime.SpecifyKind(to.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
+        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(from, to, utcOffset);
 
         var query = _firestoreDb.Collection(CollectionName)
             .WhereEqualTo(nameof(WeightEntryDocument.UserId), userId.Value)
-            .WhereGreaterThanOrEqualTo(nameof(WeightEntryDocument.LoggedAt), fromUtc)
-            .WhereLessThan(nameof(WeightEntryDocument.LoggedAt), toExclusiveUtc);
+            .WhereGreaterThanOrEqualTo(nameof(WeightEntryDocument.LoggedAt), fromInclusive)
+            .WhereLessThan(nameof(WeightEntryDocument.LoggedAt), toExclusive);
 
         var snapshot = await query.GetSnapshotAsync(cancellationToken);
 

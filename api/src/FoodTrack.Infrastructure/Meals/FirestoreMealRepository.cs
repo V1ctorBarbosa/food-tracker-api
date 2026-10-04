@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Application.Meals;
 using FoodTrack.Domain.Meals;
 using FoodTrack.Domain.Users;
@@ -40,15 +41,15 @@ public sealed class FirestoreMealRepository : IMealRepository
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var fromUtc = new DateTimeOffset(DateTime.SpecifyKind(from.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
-        var toExclusiveUtc = new DateTimeOffset(DateTime.SpecifyKind(to.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
+        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(from, to, utcOffset);
 
         var query = _firestoreDb.Collection(CollectionName)
             .WhereEqualTo(nameof(MealDocument.UserId), userId.Value)
-            .WhereGreaterThanOrEqualTo(nameof(MealDocument.LoggedAt), fromUtc)
-            .WhereLessThan(nameof(MealDocument.LoggedAt), toExclusiveUtc);
+            .WhereGreaterThanOrEqualTo(nameof(MealDocument.LoggedAt), fromInclusive)
+            .WhereLessThan(nameof(MealDocument.LoggedAt), toExclusive);
 
         var querySnapshot = await query.GetSnapshotAsync(cancellationToken);
 

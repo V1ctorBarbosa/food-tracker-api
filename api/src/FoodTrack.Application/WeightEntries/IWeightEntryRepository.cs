@@ -15,6 +15,7 @@ public interface IWeightEntryRepository
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default);
 
     /// <summary>

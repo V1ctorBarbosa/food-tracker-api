@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Application.Foods;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Foods;
@@ -21,9 +22,10 @@ public sealed class MealService
         UserId userId,
         DateOnly from,
         DateOnly to,
+        TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var meals = await _mealRepository.ListByUserAsync(userId, from, to, cancellationToken);
+        var meals = await _mealRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
         return meals.Select(ToDto).ToList();
     }
 
@@ -42,7 +44,8 @@ public sealed class MealService
     {
         var items = await ResolveItemsAsync(request.Items, cancellationToken);
         var mealType = Enum.Parse<MealType>(request.MealType, ignoreCase: true);
-        var meal = Meal.Create(MealId.NewId(), userId, DateTimeOffset.UtcNow, mealType, items);
+        var loggedAt = LoggedAtPolicy.Resolve(request.LoggedAt, DateTimeOffset.UtcNow);
+        var meal = Meal.Create(MealId.NewId(), userId, loggedAt, mealType, items);
 
         await _mealRepository.AddAsync(meal, cancellationToken);
         return ToDto(meal);

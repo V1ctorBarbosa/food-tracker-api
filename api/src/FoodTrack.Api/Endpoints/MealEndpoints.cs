@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FoodTrack.Api.Authentication;
+using FoodTrack.Application.Common;
 using FoodTrack.Application.Meals;
 using FoodTrack.Domain.Meals;
 
@@ -27,10 +28,11 @@ public static class MealEndpoints
         MealService mealService,
         DateOnly from,
         DateOnly to,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int utcOffsetMinutes = 0)
     {
         var userId = user.GetAuthenticatedUserId();
-        var meals = await mealService.ListAsync(userId, from, to, cancellationToken);
+        var meals = await mealService.ListAsync(userId, from, to, UtcOffset.FromMinutes(utcOffsetMinutes), cancellationToken);
         return Results.Ok(meals);
     }
 
