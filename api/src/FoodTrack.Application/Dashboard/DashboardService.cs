@@ -41,7 +41,7 @@ public sealed class DashboardService
             return null;
         }
 
-        var meals = await _mealRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
+        var meals = await _mealRepository.ListSummariesByUserAsync(userId, from, to, utcOffset, cancellationToken);
         var waterEntries = await _waterEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
         var weightEntries = await _weightEntryRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
         var mostRecentWeightEntry = await _weightEntryRepository.GetMostRecentAsync(userId, cancellationToken);
@@ -66,7 +66,7 @@ public sealed class DashboardService
         DateOnly from,
         DateOnly to,
         TimeSpan utcOffset,
-        IReadOnlyList<Meal> meals,
+        IReadOnlyList<MealSummary> meals,
         IReadOnlyList<WaterEntry> waterEntries)
     {
         var mealTotalsByDate = meals

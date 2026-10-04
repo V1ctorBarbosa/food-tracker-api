@@ -28,13 +28,13 @@ public sealed class MealServiceTest
         var from = new DateOnly(2026, 9, 1);
         var to = new DateOnly(2026, 9, 7);
         var saoPaulo = TimeSpan.FromHours(-3);
-        _mealRepository.ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>()).Returns([]);
+        _mealRepository.ListSummariesByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>()).Returns([]);
 
         // Act
         await _sut.ListAsync(_userId, from, to, saoPaulo);
 
         // Assert
-        await _mealRepository.Received(1).ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>());
+        await _mealRepository.Received(1).ListSummariesByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -94,21 +94,26 @@ public sealed class MealServiceTest
     }
 
     [Fact]
-    public async Task ListAsync_ReturnsMappedDtos_WithTotals()
+    public async Task ListAsync_ReturnsSummaryDtos_WithTotalsAndNoItems()
     {
         // Arrange
         var from = new DateOnly(2026, 9, 1);
         var to = new DateOnly(2026, 9, 7);
-        var meal = CreateMeal([CreateItem(260, 5.4, 56, 0.6)]);
-        _mealRepository.ListByUserAsync(_userId, from, to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([meal]);
+        var meal = CreateMeal([CreateItem(260, 5.4, 56, 0.6), CreateItem(248, 46, 0, 5)]);
+        _mealRepository.ListSummariesByUserAsync(_userId, from, to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([meal.ToSummary()]);
 
         // Act
         var result = await _sut.ListAsync(_userId, from, to, TimeSpan.Zero);
 
         // Assert
         result.Should().ContainSingle();
-        result[0].TotalCalories.Should().Be(260);
-        result[0].Items.Should().ContainSingle();
+        result[0].Id.Should().Be(meal.Id.Value);
+        result[0].MealType.Should().Be(meal.MealType.ToString());
+        result[0].LoggedAt.Should().Be(meal.LoggedAt);
+        result[0].TotalCalories.Should().Be(508);
+        result[0].TotalProtein.Should().BeApproximately(51.4, 0.0001);
+        result[0].TotalCarbs.Should().Be(56);
+        result[0].TotalFat.Should().BeApproximately(5.6, 0.0001);
     }
 
     [Fact]

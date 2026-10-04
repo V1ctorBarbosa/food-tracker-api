@@ -18,15 +18,15 @@ public sealed class MealService
         _foodRepository = foodRepository;
     }
 
-    public async Task<IReadOnlyList<MealDto>> ListAsync(
+    public async Task<IReadOnlyList<MealSummaryDto>> ListAsync(
         UserId userId,
         DateOnly from,
         DateOnly to,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var meals = await _mealRepository.ListByUserAsync(userId, from, to, utcOffset, cancellationToken);
-        return meals.Select(ToDto).ToList();
+        var summaries = await _mealRepository.ListSummariesByUserAsync(userId, from, to, utcOffset, cancellationToken);
+        return summaries.Select(ToDto).ToList();
     }
 
     public async Task<MealDto?> GetByIdAsync(UserId userId, MealId id, CancellationToken cancellationToken = default)
@@ -175,6 +175,15 @@ public sealed class MealService
         meal.TotalCarbs.Value,
         meal.TotalFat.Value,
         meal.Items.Select(ToDto).ToList());
+
+    private static MealSummaryDto ToDto(MealSummary summary) => new(
+        summary.Id.Value,
+        summary.LoggedAt,
+        summary.MealType.ToString(),
+        summary.TotalCalories.Value,
+        summary.TotalProtein.Value,
+        summary.TotalCarbs.Value,
+        summary.TotalFat.Value);
 
     private static MealItemDto ToDto(MealItem item) => new(
         item.Id.Value,

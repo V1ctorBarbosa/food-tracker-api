@@ -37,7 +37,7 @@ public sealed class FirestoreMealRepository : IMealRepository
         return MealDocumentMapper.ToDomain(id, userId, document, items);
     }
 
-    public async Task<IReadOnlyList<Meal>> ListByUserAsync(
+    public async Task<IReadOnlyList<MealSummary>> ListSummariesByUserAsync(
         UserId userId,
         DateOnly from,
         DateOnly to,
@@ -53,16 +53,30 @@ public sealed class FirestoreMealRepository : IMealRepository
 
         var querySnapshot = await query.GetSnapshotAsync(cancellationToken);
 
-        // Each meal's items live in its own subcollection, so loading them is inherently one
-        // request per meal -- run them concurrently instead of one at a time to avoid paying for
-        // that in latency too.
-        var itemsByMeal = await Task.WhenAll(
-            querySnapshot.Documents.Select(mealSnapshot => LoadItemsAsync(mealSnapshot.Reference, cancellationToken)));
+        var summaries = await Task.WhenAll(
+            querySnapshot.Documents.Select(mealSnapshot => ToSummaryAsync(mealSnapshot, userId, cancellationToken)));
 
-        return querySnapshot.Documents
-            .Zip(itemsByMeal, (mealSnapshot, items) => MealDocumentMapper.ToDomain(new MealId(mealSnapshot.Id), userId, mealSnapshot.ConvertTo<MealDocument>(), items))
-            .OrderBy(meal => meal.LoggedAt)
-            .ToList();
+        return summaries.OrderBy(summary => summary.LoggedAt).ToList();
+    }
+
+    // Meals saved before the totals were stored have none on the document, so only those pay for
+    // loading their items (one request each) to derive them.
+    private static async Task<MealSummary> ToSummaryAsync(
+        DocumentSnapshot mealSnapshot,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var mealId = new MealId(mealSnapshot.Id);
+        var document = mealSnapshot.ConvertTo<MealDocument>();
+
+        var storedSummary = MealDocumentMapper.TryToSummary(mealId, document);
+        if (storedSummary is not null)
+        {
+            return storedSummary;
+        }
+
+        var items = await LoadItemsAsync(mealSnapshot.Reference, cancellationToken);
+        return MealDocumentMapper.ToDomain(mealId, userId, document, items).ToSummary();
     }
 
     public async Task AddAsync(Meal meal, CancellationToken cancellationToken = default)
