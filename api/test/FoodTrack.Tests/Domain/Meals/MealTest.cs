@@ -59,6 +59,28 @@ public sealed class MealTest
         meal.TotalFat.Value.Should().BeApproximately(6.1, 0.0001);
     }
 
+    [Fact]
+    public void ToSummary_CarriesTheMealIdentityAndItsDerivedTotals_WithoutTheItems()
+    {
+        // Arrange
+        var id = MealId.NewId();
+        var loggedAt = new DateTimeOffset(2026, 9, 3, 12, 40, 0, TimeSpan.Zero);
+        var items = new[] { CreateItem(260, 5.4, 56, 0.6), CreateItem(248, 46, 0, 5) };
+        var meal = Meal.Create(id, new UserId("firebase-uid-123"), loggedAt, MealType.Dinner, items);
+
+        // Act
+        var summary = meal.ToSummary();
+
+        // Assert
+        summary.Id.Should().Be(id);
+        summary.LoggedAt.Should().Be(loggedAt);
+        summary.MealType.Should().Be(MealType.Dinner);
+        summary.TotalCalories.Should().Be(meal.TotalCalories);
+        summary.TotalProtein.Should().Be(meal.TotalProtein);
+        summary.TotalCarbs.Should().Be(meal.TotalCarbs);
+        summary.TotalFat.Should().Be(meal.TotalFat);
+    }
+
     private static MealItem CreateItem(int calories, double protein, double carbs, double fat) => MealItem.Create(
         MealItemId.NewId(),
         FoodId.NewId(),

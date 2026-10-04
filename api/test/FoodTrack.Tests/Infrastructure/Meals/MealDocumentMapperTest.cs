@@ -53,6 +53,122 @@ public sealed class MealDocumentMapperTest
         roundTrippedMeal.Items.Should().BeEquivalentTo(items);
     }
 
+    [Fact]
+    public void ToDocument_StoresTheTotalsDerivedFromTheItems()
+    {
+        // Arrange
+        var meal = Meal.Create(
+            MealId.NewId(),
+            new UserId("firebase-uid-123"),
+            new DateTimeOffset(2026, 9, 3, 12, 40, 0, TimeSpan.Zero),
+            MealType.Lunch,
+            [CreateItem(), CreateItem()]);
+
+        // Act
+        var document = MealDocumentMapper.ToDocument(meal);
+
+        // Assert
+        document.TotalCalories.Should().Be(meal.TotalCalories.Value);
+        document.TotalProtein.Should().Be(meal.TotalProtein.Value);
+        document.TotalCarbs.Should().Be(meal.TotalCarbs.Value);
+        document.TotalFat.Should().Be(meal.TotalFat.Value);
+    }
+
+    [Fact]
+    public void TryToSummary_ReadsTheStoredTotals_WithoutNeedingItems()
+    {
+        // Arrange
+        var id = MealId.NewId();
+        var loggedAt = new DateTimeOffset(2026, 9, 3, 12, 40, 0, TimeSpan.Zero);
+        var document = new MealDocument
+        {
+            UserId = "firebase-uid-123",
+            LoggedAt = loggedAt,
+            MealType = nameof(MealType.Dinner),
+            TotalCalories = 520,
+            TotalProtein = 31.5,
+            TotalCarbs = 60,
+            TotalFat = 12.25,
+        };
+
+        // Act
+        var summary = MealDocumentMapper.TryToSummary(id, document);
+
+        // Assert
+        summary.Should().NotBeNull();
+        summary!.Id.Should().Be(id);
+        summary.LoggedAt.Should().Be(loggedAt);
+        summary.MealType.Should().Be(MealType.Dinner);
+        summary.TotalCalories.Value.Should().Be(520);
+        summary.TotalProtein.Value.Should().Be(31.5);
+        summary.TotalCarbs.Value.Should().Be(60);
+        summary.TotalFat.Value.Should().Be(12.25);
+    }
+
+    [Fact]
+    public void TryToSummary_ReturnsNull_ForAMealSavedBeforeTotalsWereStored()
+    {
+        // Arrange
+        var document = new MealDocument
+        {
+            UserId = "firebase-uid-123",
+            LoggedAt = DateTimeOffset.UtcNow,
+            MealType = nameof(MealType.Lunch),
+        };
+
+        // Act
+        var summary = MealDocumentMapper.TryToSummary(MealId.NewId(), document);
+
+        // Assert
+        summary.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(true, false, false, false)]
+    [InlineData(false, true, false, false)]
+    [InlineData(false, false, true, false)]
+    [InlineData(false, false, false, true)]
+    public void TryToSummary_ReturnsNull_WhenOnlyOneTotalIsMissing(bool missesCalories, bool missesProtein, bool missesCarbs, bool missesFat)
+    {
+        // Arrange
+        var document = new MealDocument
+        {
+            UserId = "firebase-uid-123",
+            LoggedAt = DateTimeOffset.UtcNow,
+            MealType = nameof(MealType.Lunch),
+            TotalCalories = ValueUnlessMissing(500, missesCalories),
+            TotalProtein = ValueUnlessMissing(30, missesProtein),
+            TotalCarbs = ValueUnlessMissing(50, missesCarbs),
+            TotalFat = ValueUnlessMissing(10, missesFat),
+        };
+
+        // Act
+        var summary = MealDocumentMapper.TryToSummary(MealId.NewId(), document);
+
+        // Assert
+        summary.Should().BeNull();
+    }
+
+    private static int? ValueUnlessMissing(int value, bool isMissing)
+    {
+        if (isMissing)
+        {
+            return null;
+        }
+
+        return value;
+    }
+
+    private static double? ValueUnlessMissing(double value, bool isMissing)
+    {
+        if (isMissing)
+        {
+            return null;
+        }
+
+        return value;
+    }
+
     private static MealItem CreateItem() => MealItem.Create(
         MealItemId.NewId(),
         FoodId.NewId(),

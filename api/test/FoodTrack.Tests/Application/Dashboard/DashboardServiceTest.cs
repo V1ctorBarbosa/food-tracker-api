@@ -29,7 +29,7 @@ public sealed class DashboardServiceTest
     {
         _sut = new DashboardService(_userRepository, _mealRepository, _waterEntryRepository, _weightEntryRepository);
 
-        _mealRepository.ListByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
+        _mealRepository.ListSummariesByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
         _waterEntryRepository.ListByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
         _weightEntryRepository.ListByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
         _weightEntryRepository.GetMostRecentAsync(_userId, Arg.Any<CancellationToken>()).Returns((WeightEntry?)null);
@@ -46,7 +46,7 @@ public sealed class DashboardServiceTest
         await _sut.GetDashboardAsync(_userId, _from, _to, saoPaulo);
 
         // Assert
-        await _mealRepository.Received(1).ListByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>());
+        await _mealRepository.Received(1).ListSummariesByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>());
         await _waterEntryRepository.Received(1).ListByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>());
         await _weightEntryRepository.Received(1).ListByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>());
     }
@@ -60,7 +60,7 @@ public sealed class DashboardServiceTest
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
 
         var dinner = Meal.Create(MealId.NewId(), _userId, tenPmOnTheThird, MealType.Dinner, [CreateItem(600, 30, 60, 20)]);
-        _mealRepository.ListByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>()).Returns([dinner]);
+        _mealRepository.ListSummariesByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>()).Returns([dinner.ToSummary()]);
 
         var water = WaterEntry.Create(WaterEntryId.NewId(), _userId, tenPmOnTheThird, new Milliliters(300));
         _waterEntryRepository.ListByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>()).Returns([water]);
@@ -206,7 +206,7 @@ public sealed class DashboardServiceTest
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
         var breakfast = CreateMeal(new DateOnly(2026, 9, 1), CreateItem(260, 5.4, 56, 0.6));
         var lunch = CreateMeal(new DateOnly(2026, 9, 1), CreateItem(500, 30, 40, 15));
-        _mealRepository.ListByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([breakfast, lunch]);
+        _mealRepository.ListSummariesByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([breakfast.ToSummary(), lunch.ToSummary()]);
 
         var waterEntry = WaterEntry.Create(
             WaterEntryId.NewId(),
