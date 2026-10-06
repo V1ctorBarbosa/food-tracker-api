@@ -25,4 +25,7 @@ public interface IMealRepository
     Task UpdateAsync(Meal meal, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(MealId id, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes every meal the user logged, items included.</summary>
+    Task DeleteAllByUserAsync(UserId userId, CancellationToken cancellationToken = default);
 }

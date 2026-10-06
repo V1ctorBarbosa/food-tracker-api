@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IWaterEntryRepository, FirestoreWaterEntryRepository>();
         services.AddScoped<IFoodRepository, FirestoreFoodRepository>();
         services.AddScoped<IMealRepository, FirestoreMealRepository>();
+        services.AddSingleton<IIdentityAccountRemover, FirebaseIdentityAccountRemover>();
 
         services.AddHttpClient<TacoFoodDataClient>(client =>
         {
