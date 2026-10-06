@@ -1,4 +1,5 @@
 using FoodTrack.Domain.Foods;
+using FoodTrack.Domain.Users;
 
 namespace FoodTrack.Application.Foods;
 
@@ -16,4 +17,7 @@ public interface IFoodRepository
 
     /// <summary>Upserts the food and its servings as a single aggregate.</summary>
     Task SaveAsync(Food food, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes the custom foods the user created, servings included. The shared cache is untouched.</summary>
+    Task DeleteCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default);
 }

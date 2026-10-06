@@ -37,4 +37,11 @@ public sealed class FirestoreUserRepository : IUserRepository
             .Document(user.Id.Value)
             .SetAsync(document, cancellationToken: cancellationToken);
     }
+
+    public async Task DeleteAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        await _firestoreDb.Collection(CollectionName)
+            .Document(userId.Value)
+            .DeleteAsync(cancellationToken: cancellationToken);
+    }
 }

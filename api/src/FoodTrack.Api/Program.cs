@@ -72,6 +72,7 @@ app.MapGet("/health/firebase", async (FirestoreDb firestoreDb) =>
 .RequireAuthorization();
 
 app.MapProfileEndpoints();
+app.MapAccountEndpoints();
 app.MapWeightEntryEndpoints();
 app.MapWaterEntryEndpoints();
 app.MapFoodEndpoints();

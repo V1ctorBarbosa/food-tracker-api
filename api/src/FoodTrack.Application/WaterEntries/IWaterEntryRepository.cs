@@ -23,4 +23,6 @@ public interface IWaterEntryRepository
     Task UpdateAsync(WaterEntry entry, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(WaterEntryId id, CancellationToken cancellationToken = default);
+
+    Task DeleteAllByUserAsync(UserId userId, CancellationToken cancellationToken = default);
 }
