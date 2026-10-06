@@ -31,4 +31,14 @@ resource "aws_lambda_function" "api" {
 resource "aws_lambda_function_url" "api" {
   function_name      = aws_lambda_function.api.function_name
   authorization_type = "NONE"
+
+  # Lets the web build on Firebase Hosting (the public account deletion page among it) call the
+  # API from the browser. The native app is not a browser and is unaffected. AWS answers the
+  # preflight itself, so the ASP.NET CORS policy stays a local-development concern.
+  cors {
+    allow_origins = var.web_app_origins
+    allow_methods = ["GET", "POST", "PUT", "DELETE"]
+    allow_headers = ["authorization", "content-type"]
+    max_age       = 3600
+  }
 }
