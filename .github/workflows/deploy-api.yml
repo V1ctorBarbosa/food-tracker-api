@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# Merging several PRs in a row starts one run per merge. Each runs terraform apply against the same
+# state, so they queue instead of racing for its lock; the newest run deploys everything merged.
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
 env:
   AWS_REGION: us-east-2
   LAMBDA_ZIP_PATH: ${{ github.workspace }}/publish/function.zip
@@ -19,16 +25,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: "10.0.x"
 
       # A broken build or a failing test never reaches AWS.
       - run: dotnet test api/FoodTrack.slnx --configuration Release
 
-      - run: dotnet tool install -g Amazon.Lambda.Tools
+      - run: dotnet tool install -g Amazon.Lambda.Tools --version 7.0.0
 
       # ReadyToRun ships pre-compiled native code next to the IL, so a cold start skips most of the
       # JIT work instead of compiling the whole request path on the first call.
@@ -45,13 +51,13 @@ jobs:
       # Organizations guardrail on that account type) -- static keys for a narrowly-scoped IAM
       # user are the fallback. See infra/terraform/bootstrap/oidc.tf for the full reasoning.
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
