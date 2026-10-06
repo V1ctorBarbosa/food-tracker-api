@@ -24,14 +24,16 @@ public sealed class CompositeFoodSource : IExternalFoodSource
 
     public async Task<IReadOnlyList<Food>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
-        var tacoResultsTask = SearchSafelyAsync(() => _tacoClient.SearchAsync(query, cancellationToken));
-        var openFoodFactsResultsTask = SearchSafelyAsync(() => _openFoodFactsClient.SearchAsync(query, cancellationToken));
+        var tacoResultsTask = SearchSafelyAsync(() => _tacoClient.SearchAsync(query, cancellationToken), cancellationToken);
+        var openFoodFactsResultsTask = SearchSafelyAsync(() => _openFoodFactsClient.SearchAsync(query, cancellationToken), cancellationToken);
 
         var results = await Task.WhenAll(tacoResultsTask, openFoodFactsResultsTask);
         return results.SelectMany(foods => foods).ToList();
     }
 
-    private static async Task<IReadOnlyList<Food>> SearchSafelyAsync(Func<Task<IReadOnlyList<Food>>> search)
+    private static async Task<IReadOnlyList<Food>> SearchSafelyAsync(
+        Func<Task<IReadOnlyList<Food>>> search,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -39,6 +41,12 @@ public sealed class CompositeFoodSource : IExternalFoodSource
         }
         catch (HttpRequestException)
         {
+            return [];
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // HttpClient reports its own timeout as a cancellation; only the caller cancelling
+            // should abort the whole search.
             return [];
         }
     }

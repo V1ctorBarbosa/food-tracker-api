@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FoodTrack.Application.Common;
 using FoodTrack.Application.WaterEntries;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Users;
@@ -22,16 +23,15 @@ public sealed class WaterEntryServiceTest
     public async Task ListAsync_PassesTheUtcOffsetToTheRepository()
     {
         // Arrange
-        var from = new DateOnly(2026, 9, 1);
-        var to = new DateOnly(2026, 9, 7);
+        var dayRange = new DayRange(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 7));
         var saoPaulo = TimeSpan.FromHours(-3);
-        _waterEntryRepository.ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>()).Returns([]);
+        _waterEntryRepository.ListByUserAsync(_userId, dayRange, saoPaulo, Arg.Any<CancellationToken>()).Returns([]);
 
         // Act
-        await _sut.ListAsync(_userId, from, to, saoPaulo);
+        await _sut.ListAsync(_userId, dayRange, saoPaulo);
 
         // Assert
-        await _waterEntryRepository.Received(1).ListByUserAsync(_userId, from, to, saoPaulo, Arg.Any<CancellationToken>());
+        await _waterEntryRepository.Received(1).ListByUserAsync(_userId, dayRange, saoPaulo, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -52,16 +52,15 @@ public sealed class WaterEntryServiceTest
     public async Task ListAsync_ReturnsMappedDtos()
     {
         // Arrange
-        var from = new DateOnly(2026, 9, 1);
-        var to = new DateOnly(2026, 9, 7);
+        var dayRange = new DayRange(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 7));
         var loggedAt = new DateTimeOffset(2026, 9, 3, 8, 0, 0, TimeSpan.Zero);
         var entry = WaterEntry.Create(WaterEntryId.NewId(), _userId, loggedAt, new Milliliters(250));
 
-        _waterEntryRepository.ListByUserAsync(_userId, from, to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+        _waterEntryRepository.ListByUserAsync(_userId, dayRange, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns([entry]);
 
         // Act
-        var result = await _sut.ListAsync(_userId, from, to, TimeSpan.Zero);
+        var result = await _sut.ListAsync(_userId, dayRange, TimeSpan.Zero);
 
         // Assert
         result.Should().ContainSingle();

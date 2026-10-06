@@ -228,6 +228,21 @@ public sealed class FoodServiceTest
     }
 
     [Fact]
+    public async Task SearchAsync_Throws_WhenQueryIsLongerThanMaximumLength()
+    {
+        // Arrange
+        var query = new string('a', 101);
+
+        // Act
+        var act = async () => await _sut.SearchAsync(_userId, query);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _foodRepository.DidNotReceive().SearchByNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _externalFoodSource.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CreateCustomAsync_SavesFood_WithSourceCustomAndOwnerSet()
     {
         // Arrange

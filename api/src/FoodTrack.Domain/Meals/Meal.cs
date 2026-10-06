@@ -12,6 +12,8 @@ namespace FoodTrack.Domain.Meals;
 /// </summary>
 public sealed class Meal
 {
+    public const int MaximumItemCount = 50;
+
     public MealId Id { get; }
 
     public UserId UserId { get; }
@@ -41,12 +43,28 @@ public sealed class Meal
 
     public static Meal Create(MealId id, UserId userId, DateTimeOffset loggedAt, MealType mealType, IReadOnlyList<MealItem> items)
     {
-        if (items.Count == 0)
-        {
-            throw new ArgumentException("A meal must have at least one item.", nameof(items));
-        }
+        EnsureItemCountIsAllowed(items.Count);
 
         return new Meal(id, userId, loggedAt, mealType, items);
+    }
+
+    /// <summary>
+    /// Checks the item count on its own so a caller can reject an oversized meal before paying to
+    /// resolve each of its items. Every item costs database reads and a write, so the cap keeps
+    /// one request from fanning out into thousands of them.
+    /// </summary>
+    /// <exception cref="ArgumentException">The count is zero or above <see cref="MaximumItemCount"/>.</exception>
+    public static void EnsureItemCountIsAllowed(int itemCount)
+    {
+        if (itemCount == 0)
+        {
+            throw new ArgumentException("A meal must have at least one item.", nameof(itemCount));
+        }
+
+        if (itemCount > MaximumItemCount)
+        {
+            throw new ArgumentException($"A meal cannot have more than {MaximumItemCount} items.", nameof(itemCount));
+        }
     }
 
     public MealSummary ToSummary() => new(Id, LoggedAt, MealType, TotalCalories, TotalProtein, TotalCarbs, TotalFat);

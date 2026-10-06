@@ -2,6 +2,7 @@ using Amazon.Lambda.AspNetCoreServer.Hosting;
 using FoodTrack.Api.Authentication;
 using FoodTrack.Api.Endpoints;
 using FoodTrack.Api.ErrorHandling;
+using FoodTrack.Api.RateLimiting;
 using FoodTrack.Application;
 using FoodTrack.Infrastructure;
 using Google.Cloud.Firestore;
@@ -35,6 +36,7 @@ builder.Services
     .AddAuthentication(FirebaseAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>(FirebaseAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddAuthorization();
+builder.Services.AddPerUserRateLimiting();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -50,6 +52,8 @@ app.UseHttpsRedirection();
 app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
+// After authentication, so requests are counted per verified user rather than per caller-supplied value.
+app.UseRateLimiter();
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
     .WithName("GetHealth");

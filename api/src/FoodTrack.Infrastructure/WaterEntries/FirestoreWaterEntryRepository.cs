@@ -36,12 +36,11 @@ public sealed class FirestoreWaterEntryRepository : IWaterEntryRepository
 
     public async Task<IReadOnlyList<WaterEntry>> ListByUserAsync(
         UserId userId,
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default)
     {
-        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(from, to, utcOffset);
+        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(dayRange, utcOffset);
 
         var query = _firestoreDb.Collection(CollectionName)
             .WhereEqualTo(nameof(WaterEntryDocument.UserId), userId.Value)

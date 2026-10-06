@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FoodTrack.Application.Common;
 using FoodTrack.Application.Dashboard;
 using FoodTrack.Application.Meals;
 using FoodTrack.Application.Users;
@@ -22,16 +23,15 @@ public sealed class DashboardServiceTest
     private readonly IWeightEntryRepository _weightEntryRepository = Substitute.For<IWeightEntryRepository>();
     private readonly DashboardService _sut;
     private readonly UserId _userId = new("firebase-uid-123");
-    private readonly DateOnly _from = new(2026, 9, 1);
-    private readonly DateOnly _to = new(2026, 9, 3);
+    private readonly DayRange _dayRange = new(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 3));
 
     public DashboardServiceTest()
     {
         _sut = new DashboardService(_userRepository, _mealRepository, _waterEntryRepository, _weightEntryRepository);
 
-        _mealRepository.ListSummariesByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
-        _waterEntryRepository.ListByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
-        _weightEntryRepository.ListByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
+        _mealRepository.ListSummariesByUserAsync(_userId, _dayRange, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
+        _waterEntryRepository.ListByUserAsync(_userId, _dayRange, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
+        _weightEntryRepository.ListByUserAsync(_userId, _dayRange, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([]);
         _weightEntryRepository.GetMostRecentAsync(_userId, Arg.Any<CancellationToken>()).Returns((WeightEntry?)null);
     }
 
@@ -43,12 +43,12 @@ public sealed class DashboardServiceTest
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
 
         // Act
-        await _sut.GetDashboardAsync(_userId, _from, _to, saoPaulo);
+        await _sut.GetDashboardAsync(_userId, _dayRange, saoPaulo);
 
         // Assert
-        await _mealRepository.Received(1).ListSummariesByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>());
-        await _waterEntryRepository.Received(1).ListByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>());
-        await _weightEntryRepository.Received(1).ListByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>());
+        await _mealRepository.Received(1).ListSummariesByUserAsync(_userId, _dayRange, saoPaulo, Arg.Any<CancellationToken>());
+        await _waterEntryRepository.Received(1).ListByUserAsync(_userId, _dayRange, saoPaulo, Arg.Any<CancellationToken>());
+        await _weightEntryRepository.Received(1).ListByUserAsync(_userId, _dayRange, saoPaulo, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -60,16 +60,16 @@ public sealed class DashboardServiceTest
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
 
         var dinner = Meal.Create(MealId.NewId(), _userId, tenPmOnTheThird, MealType.Dinner, [CreateItem(600, 30, 60, 20)]);
-        _mealRepository.ListSummariesByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>()).Returns([dinner.ToSummary()]);
+        _mealRepository.ListSummariesByUserAsync(_userId, _dayRange, saoPaulo, Arg.Any<CancellationToken>()).Returns([dinner.ToSummary()]);
 
         var water = WaterEntry.Create(WaterEntryId.NewId(), _userId, tenPmOnTheThird, new Milliliters(300));
-        _waterEntryRepository.ListByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>()).Returns([water]);
+        _waterEntryRepository.ListByUserAsync(_userId, _dayRange, saoPaulo, Arg.Any<CancellationToken>()).Returns([water]);
 
         var weight = WeightEntry.Create(WeightEntryId.NewId(), _userId, tenPmOnTheThird, new Kilograms(87.6));
-        _weightEntryRepository.ListByUserAsync(_userId, _from, _to, saoPaulo, Arg.Any<CancellationToken>()).Returns([weight]);
+        _weightEntryRepository.ListByUserAsync(_userId, _dayRange, saoPaulo, Arg.Any<CancellationToken>()).Returns([weight]);
 
         // Act
-        var result = await _sut.GetDashboardAsync(_userId, _from, _to, saoPaulo);
+        var result = await _sut.GetDashboardAsync(_userId, _dayRange, saoPaulo);
 
         // Assert
         var thirdOfSeptember = new DateOnly(2026, 9, 3);
@@ -86,7 +86,7 @@ public sealed class DashboardServiceTest
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns((User?)null);
 
         // Act
-        var result = await _sut.GetDashboardAsync(_userId, _from, _to, TimeSpan.Zero);
+        var result = await _sut.GetDashboardAsync(_userId, _dayRange, TimeSpan.Zero);
 
         // Assert
         result.Should().BeNull();
@@ -106,7 +106,7 @@ public sealed class DashboardServiceTest
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(user);
 
         // Act
-        var result = await _sut.GetDashboardAsync(_userId, _from, _to, TimeSpan.Zero);
+        var result = await _sut.GetDashboardAsync(_userId, _dayRange, TimeSpan.Zero);
 
         // Assert
         result.Should().NotBeNull();
@@ -125,7 +125,7 @@ public sealed class DashboardServiceTest
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
 
         // Act
-        var result = await _sut.GetDashboardAsync(_userId, _from, _to, TimeSpan.Zero);
+        var result = await _sut.GetDashboardAsync(_userId, _dayRange, TimeSpan.Zero);
 
         // Assert
         result.Should().NotBeNull();
@@ -149,7 +149,7 @@ public sealed class DashboardServiceTest
         _weightEntryRepository.GetMostRecentAsync(_userId, Arg.Any<CancellationToken>()).Returns(mostRecentEntry);
 
         // Act
-        var result = await _sut.GetDashboardAsync(_userId, _from, _to, TimeSpan.Zero);
+        var result = await _sut.GetDashboardAsync(_userId, _dayRange, TimeSpan.Zero);
 
         // Assert
         result!.CurrentWeightKilograms.Should().Be(87.6);
@@ -170,11 +170,11 @@ public sealed class DashboardServiceTest
             _userId,
             new DateTimeOffset(2026, 9, 3, 0, 0, 0, TimeSpan.Zero),
             new Kilograms(87.6));
-        _weightEntryRepository.ListByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+        _weightEntryRepository.ListByUserAsync(_userId, _dayRange, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns([firstEntry, thirdEntry]);
 
         // Act
-        var result = await _sut.GetDashboardAsync(_userId, _from, _to, TimeSpan.Zero);
+        var result = await _sut.GetDashboardAsync(_userId, _dayRange, TimeSpan.Zero);
 
         // Assert
         result!.WeightHistory.Should().HaveCount(2);
@@ -189,7 +189,7 @@ public sealed class DashboardServiceTest
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
 
         // Act
-        var result = await _sut.GetDashboardAsync(_userId, _from, _to, TimeSpan.Zero);
+        var result = await _sut.GetDashboardAsync(_userId, _dayRange, TimeSpan.Zero);
 
         // Assert — one entry per calendar day in [from, to], all zero.
         result!.NutritionHistory.Should().HaveCount(3);
@@ -206,17 +206,17 @@ public sealed class DashboardServiceTest
         _userRepository.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
         var breakfast = CreateMeal(new DateOnly(2026, 9, 1), CreateItem(260, 5.4, 56, 0.6));
         var lunch = CreateMeal(new DateOnly(2026, 9, 1), CreateItem(500, 30, 40, 15));
-        _mealRepository.ListSummariesByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([breakfast.ToSummary(), lunch.ToSummary()]);
+        _mealRepository.ListSummariesByUserAsync(_userId, _dayRange, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([breakfast.ToSummary(), lunch.ToSummary()]);
 
         var waterEntry = WaterEntry.Create(
             WaterEntryId.NewId(),
             _userId,
             new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.Zero),
             new Milliliters(500));
-        _waterEntryRepository.ListByUserAsync(_userId, _from, _to, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([waterEntry]);
+        _waterEntryRepository.ListByUserAsync(_userId, _dayRange, Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns([waterEntry]);
 
         // Act
-        var result = await _sut.GetDashboardAsync(_userId, _from, _to, TimeSpan.Zero);
+        var result = await _sut.GetDashboardAsync(_userId, _dayRange, TimeSpan.Zero);
 
         // Assert
         var firstDay = result!.NutritionHistory.Single(entry => entry.Date == new DateOnly(2026, 9, 1));

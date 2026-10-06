@@ -27,7 +27,7 @@ public static class DashboardEndpoints
         int utcOffsetMinutes = 0)
     {
         var userId = user.GetAuthenticatedUserId();
-        var dashboard = await dashboardService.GetDashboardAsync(userId, from, to, UtcOffset.FromMinutes(utcOffsetMinutes), cancellationToken);
+        var dashboard = await dashboardService.GetDashboardAsync(userId, new DayRange(from, to), UtcOffset.FromMinutes(utcOffsetMinutes), cancellationToken);
 
         if (dashboard is null)
         {

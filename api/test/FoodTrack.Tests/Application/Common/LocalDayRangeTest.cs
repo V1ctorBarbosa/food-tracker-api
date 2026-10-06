@@ -12,7 +12,7 @@ public sealed class LocalDayRangeTest
     {
         var day = new DateOnly(2026, 9, 3);
 
-        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(day, day, TimeSpan.Zero);
+        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(new DayRange(day, day), TimeSpan.Zero);
 
         fromInclusive.Should().Be(new DateTimeOffset(2026, 9, 3, 0, 0, 0, TimeSpan.Zero));
         toExclusive.Should().Be(new DateTimeOffset(2026, 9, 4, 0, 0, 0, TimeSpan.Zero));
@@ -23,7 +23,7 @@ public sealed class LocalDayRangeTest
     {
         var day = new DateOnly(2026, 9, 3);
 
-        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(day, day, SaoPaulo);
+        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(new DayRange(day, day), SaoPaulo);
 
         fromInclusive.UtcDateTime.Should().Be(new DateTime(2026, 9, 3, 3, 0, 0, DateTimeKind.Utc));
         toExclusive.UtcDateTime.Should().Be(new DateTime(2026, 9, 4, 3, 0, 0, DateTimeKind.Utc));
@@ -32,7 +32,7 @@ public sealed class LocalDayRangeTest
     [Fact]
     public void ToInstants_AcrossSeveralDays_EndsAfterTheLastDay()
     {
-        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 7), SaoPaulo);
+        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(new DayRange(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 7)), SaoPaulo);
 
         (toExclusive - fromInclusive).Should().Be(TimeSpan.FromDays(7));
     }
@@ -43,7 +43,7 @@ public sealed class LocalDayRangeTest
         var day = new DateOnly(2026, 9, 3);
         var tenPmInSaoPaulo = new DateTimeOffset(2026, 9, 3, 22, 0, 0, SaoPaulo);
 
-        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(day, day, SaoPaulo);
+        var (fromInclusive, toExclusive) = LocalDayRange.ToInstants(new DayRange(day, day), SaoPaulo);
 
         tenPmInSaoPaulo.Should().BeOnOrAfter(fromInclusive).And.BeBefore(toExclusive);
     }

@@ -32,7 +32,7 @@ public static class MealEndpoints
         int utcOffsetMinutes = 0)
     {
         var userId = user.GetAuthenticatedUserId();
-        var meals = await mealService.ListAsync(userId, from, to, UtcOffset.FromMinutes(utcOffsetMinutes), cancellationToken);
+        var meals = await mealService.ListAsync(userId, new DayRange(from, to), UtcOffset.FromMinutes(utcOffsetMinutes), cancellationToken);
         return Results.Ok(meals);
     }
 

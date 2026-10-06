@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Domain.Users;
 using FoodTrack.Domain.WeightEntries;
 
@@ -13,8 +14,7 @@ public interface IWeightEntryRepository
 
     Task<IReadOnlyList<WeightEntry>> ListByUserAsync(
         UserId userId,
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default);
 

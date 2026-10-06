@@ -1,3 +1,4 @@
+using FoodTrack.Application.Common;
 using FoodTrack.Domain.Meals;
 using FoodTrack.Domain.Users;
 
@@ -14,8 +15,7 @@ public interface IMealRepository
     /// <summary>Lists the user's meals in a local-day range as summaries, without loading their items.</summary>
     Task<IReadOnlyList<MealSummary>> ListSummariesByUserAsync(
         UserId userId,
-        DateOnly from,
-        DateOnly to,
+        DayRange dayRange,
         TimeSpan utcOffset,
         CancellationToken cancellationToken = default);
 
