@@ -26,8 +26,8 @@ variable "firebase_project_id" {
   default     = "food-track-d7a9e"
 }
 
-variable "firebase_credentials_json" {
-  description = "Full JSON content of the Firebase service account key."
+variable "api_parameter_store_path" {
+  description = "Parameter Store path the function loads its secrets from at startup; the Firebase key lives at {path}Firebase/CredentialsJson. Must match api_parameter_store_path in the bootstrap config, which grants the read access."
   type        = string
-  sensitive   = true
+  default     = "/food-track/api/"
 }

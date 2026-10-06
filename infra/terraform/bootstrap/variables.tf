@@ -10,6 +10,12 @@ variable "lambda_function_name" {
   default     = "food-track-api"
 }
 
+variable "api_parameter_store_path" {
+  description = "Parameter Store path holding the API's secrets, with leading and trailing slashes. Must match api_parameter_store_path in the app config."
+  type        = string
+  default     = "/food-track/api/"
+}
+
 variable "budget_alert_email" {
   description = "Email that receives the zero-spend budget alert. Set via a Terraform Cloud workspace variable, not committed here."
   type        = string
