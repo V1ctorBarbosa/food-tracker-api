@@ -1,5 +1,6 @@
 using FoodTrack.Application.Common;
 using FoodTrack.Application.Meals;
+using FoodTrack.Infrastructure.Firebase;
 using FoodTrack.Domain.Meals;
 using FoodTrack.Domain.Users;
 using Google.Cloud.Firestore;
@@ -132,6 +133,12 @@ public sealed class FirestoreMealRepository : IMealRepository
 
             transaction.Delete(mealDocumentReference);
         }, cancellationToken: cancellationToken);
+    }
+
+    public async Task DeleteAllByUserAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        var query = _firestoreDb.Collection(CollectionName).WhereEqualTo(nameof(MealDocument.UserId), userId.Value);
+        await FirestoreBulkDeletion.DeleteWithSubcollectionAsync(_firestoreDb, query, ItemsSubcollectionName, cancellationToken);
     }
 
     private static async Task<IReadOnlyList<MealItem>> LoadItemsAsync(

@@ -32,6 +32,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddUserSessionStatus();
 builder.Services
     .AddAuthentication(FirebaseAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>(FirebaseAuthenticationHandler.SchemeName, _ => { });
@@ -72,6 +73,7 @@ app.MapGet("/health/firebase", async (FirestoreDb firestoreDb) =>
 .RequireAuthorization();
 
 app.MapProfileEndpoints();
+app.MapAccountEndpoints();
 app.MapWeightEntryEndpoints();
 app.MapWaterEntryEndpoints();
 app.MapFoodEndpoints();
