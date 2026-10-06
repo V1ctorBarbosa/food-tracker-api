@@ -32,6 +32,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddUserSessionStatus();
 builder.Services
     .AddAuthentication(FirebaseAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>(FirebaseAuthenticationHandler.SchemeName, _ => { });

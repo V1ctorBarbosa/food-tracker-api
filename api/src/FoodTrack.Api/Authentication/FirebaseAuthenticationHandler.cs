@@ -21,6 +21,7 @@ public sealed class FirebaseAuthenticationHandler : AuthenticationHandler<Authen
     private const string BearerPrefix = "Bearer ";
 
     private readonly FirebaseAuth _firebaseAuth;
+    private readonly IUserSessionStatusProvider _userSessionStatusProvider;
 
     private string _authErrorCode = AuthErrorCode.MissingCredentials;
 
@@ -28,10 +29,12 @@ public sealed class FirebaseAuthenticationHandler : AuthenticationHandler<Authen
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        FirebaseApp firebaseApp)
+        FirebaseApp firebaseApp,
+        IUserSessionStatusProvider userSessionStatusProvider)
         : base(options, logger, encoder)
     {
         _firebaseAuth = FirebaseAuth.GetAuth(firebaseApp);
+        _userSessionStatusProvider = userSessionStatusProvider;
     }
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -53,21 +56,10 @@ public sealed class FirebaseAuthenticationHandler : AuthenticationHandler<Authen
             return AuthenticateResult.Fail("Missing bearer token.");
         }
 
+        FirebaseToken decodedToken;
         try
         {
-            var decodedToken = await _firebaseAuth.VerifyIdTokenAsync(idToken);
-
-            var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, decodedToken.Uid) };
-            if (decodedToken.Claims.TryGetValue("email", out var email) && email is not null)
-            {
-                claims.Add(new Claim(ClaimTypes.Email, email.ToString()!));
-            }
-
-            var identity = new ClaimsIdentity(claims, SchemeName);
-            var principal = new ClaimsPrincipal(identity);
-            var ticket = new AuthenticationTicket(principal, SchemeName);
-
-            return AuthenticateResult.Success(ticket);
+            decodedToken = await _firebaseAuth.VerifyIdTokenAsync(idToken, Context.RequestAborted);
         }
         catch (FirebaseAuthException ex)
         {
@@ -75,6 +67,31 @@ public sealed class FirebaseAuthenticationHandler : AuthenticationHandler<Authen
             _authErrorCode = FirebaseAuthErrorCodeMapper.Map(ex.AuthErrorCode);
             return AuthenticateResult.Fail("Invalid or expired token.");
         }
+
+        // Outside the try above on purpose: failing to reach the identity provider is a server
+        // error, not a reason to tell the client its credentials are bad and sign it out.
+        var sessionStatus = await _userSessionStatusProvider.GetAsync(decodedToken.Uid, Context.RequestAborted);
+        var tokenIssuedAt = DateTimeOffset.FromUnixTimeSeconds(decodedToken.IssuedAtTimeSeconds);
+        if (sessionStatus.Rejects(tokenIssuedAt))
+        {
+            _authErrorCode = AuthErrorCode.TokenRevoked;
+            return AuthenticateResult.Fail("The token was revoked or the account is no longer active.");
+        }
+
+        return AuthenticateResult.Success(BuildTicket(decodedToken));
+    }
+
+    private static AuthenticationTicket BuildTicket(FirebaseToken decodedToken)
+    {
+        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, decodedToken.Uid) };
+        if (decodedToken.Claims.TryGetValue("email", out var email) && email is not null)
+        {
+            claims.Add(new Claim(ClaimTypes.Email, email.ToString()!));
+        }
+
+        var identity = new ClaimsIdentity(claims, SchemeName);
+        var principal = new ClaimsPrincipal(identity);
+        return new AuthenticationTicket(principal, SchemeName);
     }
 
     protected override Task HandleChallengeAsync(AuthenticationProperties properties)
