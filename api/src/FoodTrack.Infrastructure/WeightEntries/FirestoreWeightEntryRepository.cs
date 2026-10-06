@@ -2,6 +2,7 @@ using FoodTrack.Application.Common;
 using FoodTrack.Application.WeightEntries;
 using FoodTrack.Domain.Users;
 using FoodTrack.Domain.WeightEntries;
+using FoodTrack.Infrastructure.Firebase;
 using Google.Cloud.Firestore;
 
 namespace FoodTrack.Infrastructure.WeightEntries;
@@ -93,5 +94,11 @@ public sealed class FirestoreWeightEntryRepository : IWeightEntryRepository
         await _firestoreDb.Collection(CollectionName)
             .Document(id.Value)
             .DeleteAsync(cancellationToken: cancellationToken);
+    }
+
+    public async Task DeleteAllByUserAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        var query = _firestoreDb.Collection(CollectionName).WhereEqualTo(nameof(WeightEntryDocument.UserId), userId.Value);
+        await FirestoreBulkDeletion.DeleteMatchingAsync(_firestoreDb, query, cancellationToken);
     }
 }

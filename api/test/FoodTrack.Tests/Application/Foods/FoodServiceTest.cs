@@ -202,6 +202,7 @@ public sealed class FoodServiceTest
         var ownFood = CreateCustomFood(ownerId: _userId, name: "My protein shake");
         var othersFood = CreateCustomFood(ownerId: _otherUserId, name: "Their protein shake");
         _foodRepository.SearchByNameAsync("protein", Arg.Any<CancellationToken>()).Returns([ownFood, othersFood]);
+        _externalFoodSource.SearchAsync("protein", Arg.Any<CancellationToken>()).Returns([]);
 
         // Act
         var result = await _sut.SearchAsync(_userId, "protein");
@@ -209,6 +210,56 @@ public sealed class FoodServiceTest
         // Assert
         result.Should().ContainSingle();
         result[0].Name.Should().Be("My protein shake");
+    }
+
+    [Fact]
+    public async Task SearchAsync_StillQueriesTheExternalSource_WhenTheOnlyCachedMatchIsAnotherUsersCustomFood()
+    {
+        // Arrange -- another user named a custom food after the term before anyone searched it.
+        var othersFood = CreateCustomFood(ownerId: _otherUserId, name: "Chicken breast");
+        var externalFood = CreateChickenBreast();
+        _foodRepository.SearchByNameAsync("chicken", Arg.Any<CancellationToken>()).Returns([othersFood]);
+        _externalFoodSource.SearchAsync("chicken", Arg.Any<CancellationToken>()).Returns([externalFood]);
+
+        // Act
+        var result = await _sut.SearchAsync(_userId, "chicken");
+
+        // Assert
+        result.Should().ContainSingle().Which.Id.Should().Be(externalFood.Id.Value);
+        await _foodRepository.Received(1).SaveAsync(externalFood, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_ReturnsOwnCustomFoodsAlongsideExternalResults_WhenNoSharedFoodIsCached()
+    {
+        // Arrange
+        var ownFood = CreateCustomFood(ownerId: _userId, name: "My chicken salad");
+        var externalFood = CreateChickenBreast();
+        _foodRepository.SearchByNameAsync("chicken", Arg.Any<CancellationToken>()).Returns([ownFood]);
+        _externalFoodSource.SearchAsync("chicken", Arg.Any<CancellationToken>()).Returns([externalFood]);
+
+        // Act
+        var result = await _sut.SearchAsync(_userId, "chicken");
+
+        // Assert
+        result.Select(food => food.Name).Should().BeEquivalentTo("My chicken salad", "Chicken breast");
+    }
+
+    [Fact]
+    public async Task SearchAsync_DoesNotQueryTheExternalSource_WhenASharedFoodIsCachedNextToCustomFoods()
+    {
+        // Arrange
+        var sharedFood = CreateChickenBreast();
+        var ownFood = CreateCustomFood(ownerId: _userId, name: "My chicken salad");
+        var othersFood = CreateCustomFood(ownerId: _otherUserId, name: "Their chicken wrap");
+        _foodRepository.SearchByNameAsync("chicken", Arg.Any<CancellationToken>()).Returns([sharedFood, ownFood, othersFood]);
+
+        // Act
+        var result = await _sut.SearchAsync(_userId, "chicken");
+
+        // Assert
+        result.Select(food => food.Name).Should().BeEquivalentTo("Chicken breast", "My chicken salad");
+        await _externalFoodSource.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]

@@ -40,6 +40,9 @@ public sealed class FoodService
     /// so the next search for the same food is a cache hit. Either way, results are filtered to
     /// what <paramref name="userId"/> may see: the shared cache plus their own custom foods,
     /// never another user's.
+    /// Only shared foods count as a cache hit. Custom foods live in the same collection, so if
+    /// they counted, any user could name a custom food after a term and make that search return
+    /// nothing for everyone else, since the external source would never be asked again.
     /// </summary>
     public async Task<IReadOnlyList<FoodDto>> SearchAsync(UserId userId, string query, CancellationToken cancellationToken = default)
     {
@@ -55,19 +58,14 @@ public sealed class FoodService
         }
 
         var cachedFoods = await _foodRepository.SearchByNameAsync(query, cancellationToken);
-        if (cachedFoods.Count > 0)
+        var visibleCachedFoods = FilterVisible(cachedFoods, userId).ToList();
+        if (visibleCachedFoods.Any(IsShared))
         {
-            return FilterVisible(cachedFoods, userId).Select(ToDto).ToList();
+            return visibleCachedFoods.Select(ToDto).ToList();
         }
 
-        var externalFoods = await _externalFoodSource.SearchAsync(query, cancellationToken);
-        var savedFoods = new List<Food>();
-        foreach (var food in externalFoods)
-        {
-            savedFoods.Add(await SaveDeduplicatedAsync(food, cancellationToken));
-        }
-
-        return FilterVisible(savedFoods, userId).Select(ToDto).ToList();
+        var externalFoods = await FetchAndCacheExternalFoodsAsync(query, cancellationToken);
+        return visibleCachedFoods.Concat(externalFoods).Select(ToDto).ToList();
     }
 
     public async Task<FoodDto> CreateCustomAsync(UserId userId, CreateCustomFoodRequest request, CancellationToken cancellationToken = default)
@@ -117,6 +115,20 @@ public sealed class FoodService
         food.FatPerBaseUnit,
         food.Servings,
         food.OwnerId);
+
+    private async Task<IReadOnlyList<Food>> FetchAndCacheExternalFoodsAsync(string query, CancellationToken cancellationToken)
+    {
+        var externalFoods = await _externalFoodSource.SearchAsync(query, cancellationToken);
+        var savedFoods = new List<Food>();
+        foreach (var food in externalFoods)
+        {
+            savedFoods.Add(await SaveDeduplicatedAsync(food, cancellationToken));
+        }
+
+        return savedFoods;
+    }
+
+    private static bool IsShared(Food food) => food.OwnerId is null;
 
     private static IEnumerable<Food> FilterVisible(IEnumerable<Food> foods, UserId userId) =>
         foods.Where(food => IsVisibleTo(food, userId));

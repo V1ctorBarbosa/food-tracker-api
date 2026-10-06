@@ -2,6 +2,7 @@ using FoodTrack.Application.Common;
 using FoodTrack.Application.WaterEntries;
 using FoodTrack.Domain.Users;
 using FoodTrack.Domain.WaterEntries;
+using FoodTrack.Infrastructure.Firebase;
 using Google.Cloud.Firestore;
 
 namespace FoodTrack.Infrastructure.WaterEntries;
@@ -76,5 +77,11 @@ public sealed class FirestoreWaterEntryRepository : IWaterEntryRepository
         await _firestoreDb.Collection(CollectionName)
             .Document(id.Value)
             .DeleteAsync(cancellationToken: cancellationToken);
+    }
+
+    public async Task DeleteAllByUserAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        var query = _firestoreDb.Collection(CollectionName).WhereEqualTo(nameof(WaterEntryDocument.UserId), userId.Value);
+        await FirestoreBulkDeletion.DeleteMatchingAsync(_firestoreDb, query, cancellationToken);
     }
 }

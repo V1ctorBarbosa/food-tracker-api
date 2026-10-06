@@ -26,6 +26,12 @@ variable "firebase_project_id" {
   default     = "food-track-d7a9e"
 }
 
+variable "web_app_origins" {
+  description = "Browser origins allowed to call the API: the Firebase Hosting domains the web build is served from."
+  type        = list(string)
+  default     = ["https://food-track-d7a9e.web.app", "https://food-track-d7a9e.firebaseapp.com"]
+}
+
 variable "api_parameter_store_path" {
   description = "Parameter Store path the function loads its secrets from at startup; the Firebase key lives at {path}Firebase/CredentialsJson. Must match api_parameter_store_path in the bootstrap config, which grants the read access."
   type        = string
