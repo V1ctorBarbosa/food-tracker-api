@@ -14,6 +14,10 @@ public sealed class FoodService
     // No food name is this long; a longer query can only be noise sent to the external sources.
     private const int MaximumQueryLength = 100;
 
+    // Applies only to names users type; names from the external sources (product plus brands) are
+    // stored as the source gives them.
+    private const int MaximumCustomFoodNameLength = 100;
+
     private readonly IFoodRepository _foodRepository;
     private readonly IExternalFoodSource _externalFoodSource;
 
@@ -72,6 +76,11 @@ public sealed class FoodService
 
     public async Task<FoodDto> CreateCustomAsync(UserId userId, CreateCustomFoodRequest request, CancellationToken cancellationToken = default)
     {
+        if (request.Name is not null && request.Name.Trim().Length > MaximumCustomFoodNameLength)
+        {
+            throw new ArgumentException($"Name cannot be longer than {MaximumCustomFoodNameLength} characters.", nameof(request));
+        }
+
         var food = Food.Create(
             FoodId.NewId(),
             request.Name,
@@ -121,7 +130,7 @@ public sealed class FoodService
     private static IEnumerable<Food> FilterVisible(IEnumerable<Food> foods, UserId userId) =>
         foods.Where(food => IsVisibleTo(food, userId));
 
-    private static bool IsVisibleTo(Food food, UserId userId) => food.OwnerId is null || food.OwnerId == userId;
+    private static bool IsVisibleTo(Food food, UserId userId) => food.IsVisibleTo(userId);
 
     private static FoodDto ToDto(Food food) => new(
         food.Id.Value,

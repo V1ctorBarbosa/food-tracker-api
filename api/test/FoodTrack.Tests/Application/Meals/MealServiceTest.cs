@@ -203,6 +203,52 @@ public sealed class MealServiceTest
         await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData("not-a-guid")]
+    [InlineData("other-food/servings/some-serving")]
+    public async Task CreateAsync_Throws_WithoutReadingTheDatabase_WhenTheFoodIdIsNotAGuid(string foodId)
+    {
+        // Arrange
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(foodId, 100, nameof(MeasurementUnit.Gram), null, null)]);
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _foodRepository.DidNotReceive().GetByIdAsync(Arg.Any<FoodId>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_Throws_WhenTheFoodIsAnotherUsersCustomFood()
+    {
+        // Arrange
+        var othersFood = Food.Create(
+            FoodId.NewId(),
+            "Their secret recipe",
+            FoodSource.Custom,
+            externalId: null,
+            new BaseUnit(100, MeasurementUnit.Gram),
+            new Kilocalories(300),
+            new Grams(10),
+            new Grams(40),
+            new Grams(12),
+            ownerId: new UserId("another-uid"));
+        _foodRepository.GetByIdAsync(othersFood.Id, Arg.Any<CancellationToken>()).Returns(othersFood);
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(othersFood.Id.Value, 100, nameof(MeasurementUnit.Gram), null, null)]);
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task CreateAsync_Throws_WhenFoodDoesNotExist()
     {

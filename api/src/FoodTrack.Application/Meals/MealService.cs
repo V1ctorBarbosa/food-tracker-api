@@ -41,7 +41,7 @@ public sealed class MealService
 
     public async Task<MealDto> CreateAsync(UserId userId, CreateMealRequest request, CancellationToken cancellationToken = default)
     {
-        var items = await ResolveItemsAsync(request.Items, cancellationToken);
+        var items = await ResolveItemsAsync(userId, request.Items, cancellationToken);
         var mealType = Enum.Parse<MealType>(request.MealType, ignoreCase: true);
         var loggedAt = LoggedAtPolicy.Resolve(request.LoggedAt, DateTimeOffset.UtcNow);
         var meal = Meal.Create(MealId.NewId(), userId, loggedAt, mealType, items);
@@ -63,7 +63,7 @@ public sealed class MealService
             return null;
         }
 
-        var items = await ResolveItemsAsync(request.Items, cancellationToken);
+        var items = await ResolveItemsAsync(userId, request.Items, cancellationToken);
         var mealType = Enum.Parse<MealType>(request.MealType, ignoreCase: true);
         var meal = Meal.Create(id, userId, existing.LoggedAt, mealType, items);
 
@@ -85,6 +85,7 @@ public sealed class MealService
     }
 
     private async Task<IReadOnlyList<MealItem>> ResolveItemsAsync(
+        UserId userId,
         IReadOnlyList<MealItemRequest> itemRequests,
         CancellationToken cancellationToken)
     {
@@ -93,17 +94,32 @@ public sealed class MealService
         var items = new List<MealItem>(itemRequests.Count);
         foreach (var itemRequest in itemRequests)
         {
-            var foodId = new FoodId(itemRequest.FoodId);
-            var food = await _foodRepository.GetByIdAsync(foodId, cancellationToken);
-            if (food is null)
-            {
-                throw new ArgumentException($"Food '{itemRequest.FoodId}' does not exist.", nameof(itemRequests));
-            }
-
+            var food = await FindFoodVisibleToAsync(userId, itemRequest.FoodId, cancellationToken);
             items.Add(ResolveItem(food, itemRequest));
         }
 
         return items;
+    }
+
+    /// <summary>
+    /// Resolves a food id sent by the client. Every food id is a GUID minted by the API, so anything
+    /// else is rejected before it can reach the database as a document path. Another user's custom
+    /// food is reported as missing too, so its id cannot be used to read its nutrition values.
+    /// </summary>
+    private async Task<Food> FindFoodVisibleToAsync(UserId userId, string requestedFoodId, CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(requestedFoodId, out _))
+        {
+            throw new ArgumentException($"Food '{requestedFoodId}' does not exist.", nameof(requestedFoodId));
+        }
+
+        var food = await _foodRepository.GetByIdAsync(new FoodId(requestedFoodId), cancellationToken);
+        if (food is null || !food.IsVisibleTo(userId))
+        {
+            throw new ArgumentException($"Food '{requestedFoodId}' does not exist.", nameof(requestedFoodId));
+        }
+
+        return food;
     }
 
     private static MealItem ResolveItem(Food food, MealItemRequest itemRequest)
