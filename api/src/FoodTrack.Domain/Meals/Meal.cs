@@ -5,9 +5,10 @@ namespace FoodTrack.Domain.Meals;
 
 /// <summary>
 /// A meal that took place (docs section 10), aggregate root for its <see cref="MealItem"/>
-/// children. Totals are derived from the items rather than stored -- the docs note that
-/// persisting them is possible "as long as the API keeps them consistent when items change";
-/// deriving them avoids that whole class of bug for the size this project needs.
+/// children. Totals are always derived from the items here, so the aggregate can never disagree
+/// with itself. Persistence keeps a copy of them on the meal document (see
+/// <see cref="ToSummary"/>) so lists can skip loading the items; that copy is only ever written
+/// from this derivation, in the same operation that writes the items.
 /// </summary>
 public sealed class Meal
 {
@@ -65,4 +66,6 @@ public sealed class Meal
             throw new ArgumentException($"A meal cannot have more than {MaximumItemCount} items.", nameof(itemCount));
         }
     }
+
+    public MealSummary ToSummary() => new(Id, LoggedAt, MealType, TotalCalories, TotalProtein, TotalCarbs, TotalFat);
 }

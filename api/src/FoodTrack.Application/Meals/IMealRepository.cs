@@ -12,7 +12,8 @@ public interface IMealRepository
     /// </summary>
     Task<Meal?> GetByIdAsync(MealId id, UserId userId, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Meal>> ListByUserAsync(
+    /// <summary>Lists the user's meals in a local-day range as summaries, without loading their items.</summary>
+    Task<IReadOnlyList<MealSummary>> ListSummariesByUserAsync(
         UserId userId,
         DayRange dayRange,
         TimeSpan utcOffset,
