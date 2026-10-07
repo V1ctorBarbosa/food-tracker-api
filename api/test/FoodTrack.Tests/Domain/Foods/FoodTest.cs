@@ -137,6 +137,45 @@ public sealed class FoodTest
         act.Should().Throw<ArgumentException>();
     }
 
+    [Fact]
+    public void IsVisibleTo_ReturnsTrue_ForASharedFood_WhoeverAsks()
+    {
+        // Arrange
+        var sharedFood = CreateValidFood();
+
+        // Act
+        var isVisible = sharedFood.IsVisibleTo(new UserId("any-user"));
+
+        // Assert
+        isVisible.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsVisibleTo_ReturnsTrue_OnlyForTheOwner_OfACustomFood()
+    {
+        // Arrange
+        var ownerId = new UserId("owner-uid");
+        var customFood = Food.Create(
+            FoodId.NewId(),
+            "My whey",
+            FoodSource.Custom,
+            externalId: null,
+            new BaseUnit(100, MeasurementUnit.Gram),
+            new Kilocalories(120),
+            new Grams(24),
+            new Grams(3),
+            new Grams(1.5),
+            ownerId: ownerId);
+
+        // Act
+        var isVisibleToOwner = customFood.IsVisibleTo(ownerId);
+        var isVisibleToSomeoneElse = customFood.IsVisibleTo(new UserId("someone-else"));
+
+        // Assert
+        isVisibleToOwner.Should().BeTrue();
+        isVisibleToSomeoneElse.Should().BeFalse();
+    }
+
     private static Food CreateValidFood(string name = "Chicken breast") => Food.Create(
         FoodId.NewId(),
         name,

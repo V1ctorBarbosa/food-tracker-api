@@ -4,6 +4,8 @@ namespace FoodTrack.Domain.Users;
 
 public sealed class User
 {
+    public const int MaximumNameLength = 100;
+
     public UserId Id { get; }
 
     public string Name { get; }
@@ -78,6 +80,11 @@ public sealed class User
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new ArgumentException("Name cannot be empty.", nameof(name));
+        }
+
+        if (name.Trim().Length > MaximumNameLength)
+        {
+            throw new ArgumentException($"Name cannot be longer than {MaximumNameLength} characters.", nameof(name));
         }
 
         return new User(

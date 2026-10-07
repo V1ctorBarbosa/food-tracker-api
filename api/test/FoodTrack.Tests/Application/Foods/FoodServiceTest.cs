@@ -294,6 +294,20 @@ public sealed class FoodServiceTest
     }
 
     [Fact]
+    public async Task CreateCustomAsync_Throws_AndSavesNothing_WhenTheNameIsLongerThanTheMaximumLength()
+    {
+        // Arrange
+        var request = new CreateCustomFoodRequest(new string('a', 101), 120, 24, 3, 1.5);
+
+        // Act
+        var act = () => _sut.CreateCustomAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CreateCustomAsync_SavesFood_WithSourceCustomAndOwnerSet()
     {
         // Arrange

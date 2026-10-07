@@ -60,6 +60,9 @@ public sealed class Food
         OwnerId = ownerId;
     }
 
+    /// <summary>Shared foods are visible to everyone; a custom food only to the user who created it.</summary>
+    public bool IsVisibleTo(UserId userId) => OwnerId is null || OwnerId == userId;
+
     public static Food Create(
         FoodId id,
         string name,
