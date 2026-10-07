@@ -114,6 +114,26 @@ public sealed class UserTest
         act.Should().Throw<ArgumentException>();
     }
 
+    [Fact]
+    public void Create_AcceptsAName_OfExactlyTheMaximumLength()
+    {
+        // Act
+        var user = CreateValidUser(name: new string('a', User.MaximumNameLength));
+
+        // Assert
+        user.Name.Should().HaveLength(User.MaximumNameLength);
+    }
+
+    [Fact]
+    public void Create_Throws_WhenNameIsLongerThanTheMaximumLength()
+    {
+        // Act
+        var act = () => CreateValidUser(name: new string('a', User.MaximumNameLength + 1));
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
     private static User CreateValidUser(string name = "Victor", Kilograms? targetWeight = null) => User.Create(
         new UserId("firebase-uid-123"),
         name,
