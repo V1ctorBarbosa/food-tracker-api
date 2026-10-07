@@ -10,6 +10,12 @@ variable "lambda_function_name" {
   default     = "food-track-api"
 }
 
+variable "api_parameter_store_path" {
+  description = "Parameter Store path holding the API's secrets, with leading and trailing slashes. Must match api_parameter_store_path in the app config."
+  type        = string
+  default     = "/food-track/api/"
+}
+
 variable "lambda_log_retention_in_days" {
   description = "How long the function's CloudWatch logs are kept. Must be one of the values CloudWatch accepts (1, 3, 5, 7, 14, 30, 60, 90, ...)."
   type        = number

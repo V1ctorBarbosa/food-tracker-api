@@ -32,8 +32,8 @@ variable "web_app_origins" {
   default     = ["https://food-track-d7a9e.web.app", "https://food-track-d7a9e.firebaseapp.com"]
 }
 
-variable "firebase_credentials_json" {
-  description = "Full JSON content of the Firebase service account key."
+variable "api_parameter_store_path" {
+  description = "Parameter Store path the function loads its secrets from at startup; the Firebase key lives at {path}Firebase/CredentialsJson. Must match api_parameter_store_path in the bootstrap config, which grants the read access."
   type        = string
-  sensitive   = true
+  default     = "/food-track/api/"
 }

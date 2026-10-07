@@ -52,8 +52,9 @@ public static class FirebaseServiceCollectionExtensions
     }
 
     /// <summary>
-    /// CredentialsJson wins when set (e.g. a Lambda environment variable, where there's no file on
-    /// disk to point at); otherwise falls back to reading CredentialsPath, as local dev always has.
+    /// CredentialsJson wins when set (loaded from Parameter Store on the deployed function, where
+    /// there is no file on disk to point at); otherwise falls back to reading CredentialsPath, as
+    /// local dev always has.
     /// </summary>
     private static GoogleCredential LoadCredential(FirebaseOptions options)
     {
