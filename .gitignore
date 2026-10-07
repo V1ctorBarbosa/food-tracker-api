@@ -22,6 +22,9 @@ api/**/obj/
 !*.tfvars.example
 crash.log
 crash.*.log
+# Saved plans (`terraform plan -out`) can hold sensitive values in plain text.
+tfplan
+*.tfplan
 
 # Lambda build output
 /publish/
