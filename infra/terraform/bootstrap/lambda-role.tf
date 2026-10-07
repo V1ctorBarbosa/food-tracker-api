@@ -28,10 +28,15 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
 # put the key in plain text in the one place it is meant to stay out of. SecureString parameters use
 # the AWS-managed aws/ssm key, whose key policy already lets account principals decrypt through SSM.
 data "aws_iam_policy_document" "lambda_read_api_parameters" {
+  # IAM matches the path exactly as the caller sends it, and the configuration provider sends it
+  # with its trailing slash, so both spellings are allowed.
   statement {
-    sid       = "ReadTheApiParameterPath"
-    actions   = ["ssm:GetParametersByPath"]
-    resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${trimsuffix(var.api_parameter_store_path, "/")}"]
+    sid     = "ReadTheApiParameterPath"
+    actions = ["ssm:GetParametersByPath"]
+    resources = [
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.api_parameter_store_path}",
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${trimsuffix(var.api_parameter_store_path, "/")}",
+    ]
   }
 
   statement {
