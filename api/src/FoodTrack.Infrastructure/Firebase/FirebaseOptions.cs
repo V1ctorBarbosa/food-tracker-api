@@ -18,9 +18,8 @@ public sealed class FirebaseOptions
 
     /// <summary>
     /// The service account key's full JSON content, used instead of <see cref="CredentialsPath"/>
-    /// when set (on the deployed function it is loaded from an encrypted Parameter Store parameter,
-    /// where there is no credentials file on disk to point at). Empty by default so local dev keeps
-    /// reading the file as it always has.
+    /// when set (e.g. from a Lambda environment variable, where there's no credentials file on
+    /// disk to point at). Empty by default so local dev keeps reading the file as it always has.
     /// </summary>
     public string CredentialsJson { get; set; } = string.Empty;
 }

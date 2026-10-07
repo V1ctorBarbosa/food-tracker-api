@@ -5,7 +5,6 @@ using FoodTrack.Api.ErrorHandling;
 using FoodTrack.Api.RateLimiting;
 using FoodTrack.Application;
 using FoodTrack.Infrastructure;
-using FoodTrack.Infrastructure.Configuration;
 using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Authentication;
 
@@ -13,7 +12,6 @@ const string DevelopmentCorsPolicyName = "DevelopmentCors";
 const string ExpoWebDevServerOrigin = "http://localhost:8081";
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddParameterStoreWhenConfigured();
 
 // A no-op outside Lambda -- Kestrel keeps serving requests exactly as today for local dev.
 // Only takes over when this same executable is actually invoked as a Lambda function.

@@ -76,26 +76,14 @@ Note the outputs: `github_actions_access_key_id`, `lambda_execution_role_arn`, a
 if you lose it, `terraform taint aws_iam_access_key.github_actions_deploy` and re-apply to
 generate a new one).
 
-### 5. Store the Firebase service account key in Parameter Store
-
-The function reads the key at startup from an encrypted SecureString parameter; it is never passed
-through Terraform or GitHub, so it stays out of the Lambda configuration and out of Terraform state.
-
-```bash
-aws ssm put-parameter --region us-east-2 --name /food-track/api/Firebase/CredentialsJson --type SecureString --value file://firebase-service-account.json
-```
-
-To rotate the key later, run the same command with `--overwrite` and a new key file; the function
-picks it up on its next cold start.
-
-### 6. Set the Terraform Cloud execution mode to Local
+### 5. Set the Terraform Cloud execution mode to Local
 
 On both workspaces, *Settings → General → Execution mode → Local*. Terraform then runs on your
 machine and in GitHub Actions, and Terraform Cloud only stores state. In this mode workspace
 variables set in the Terraform Cloud UI are ignored, so the app config's inputs come from the
 GitHub secrets below instead.
 
-### 7. Add GitHub repo secrets
+### 6. Add GitHub repo secrets
 
 On `V1ctorBarbosa/food-tracker-api` → *Settings → Secrets and variables → Actions*, add:
 
@@ -105,9 +93,9 @@ On `V1ctorBarbosa/food-tracker-api` → *Settings → Secrets and variables → 
 | `AWS_SECRET_ACCESS_KEY` | the `github_actions_secret_access_key` output from step 4 |
 | `TF_API_TOKEN` | the same Terraform Cloud token from step 1 |
 | `LAMBDA_EXECUTION_ROLE_ARN` | the `lambda_execution_role_arn` output from step 4 |
+| `FIREBASE_CREDENTIALS_JSON` | full contents of your `firebase-service-account.json` |
 
-(`firebase_project_id`, `lambda_function_name` and `api_parameter_store_path` already default
-correctly in `variables.tf`.)
+(`firebase_project_id` and `lambda_function_name` already default correctly in `variables.tf`.)
 
 That's it. Push to `master` and the `Deploy API` workflow builds, tests, and deploys.
 

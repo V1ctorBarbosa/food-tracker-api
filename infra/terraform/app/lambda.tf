@@ -17,9 +17,9 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      Firebase__ProjectId     = var.firebase_project_id
-      AwsParameterStore__Path = var.api_parameter_store_path
-      ASPNETCORE_ENVIRONMENT  = "Production"
+      Firebase__ProjectId       = var.firebase_project_id
+      Firebase__CredentialsJson = var.firebase_credentials_json
+      ASPNETCORE_ENVIRONMENT    = "Production"
     }
   }
 }
