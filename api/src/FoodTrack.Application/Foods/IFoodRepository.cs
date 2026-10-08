@@ -18,6 +18,9 @@ public interface IFoodRepository
     /// <summary>Upserts the food and its servings as a single aggregate.</summary>
     Task SaveAsync(Food food, CancellationToken cancellationToken = default);
 
+    /// <summary>Lists the custom foods the user created, in no particular order.</summary>
+    Task<IReadOnlyList<Food>> ListCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default);
+
     /// <summary>Deletes the custom foods the user created, servings included. The shared cache is untouched.</summary>
     Task DeleteCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default);
 }

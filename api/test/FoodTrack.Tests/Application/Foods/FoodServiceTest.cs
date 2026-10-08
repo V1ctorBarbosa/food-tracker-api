@@ -330,6 +330,152 @@ public sealed class FoodServiceTest
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task ListCustomAsync_ReturnsTheUsersCustomFoods_OrderedByNameIgnoringCase()
+    {
+        // Arrange
+        var granola = CreateCustomFood(_userId, "granola caseira");
+        var friedBanana = CreateCustomFood(_userId, "Banana frita");
+        var oats = CreateCustomFood(_userId, "Aveia");
+        _foodRepository.ListCustomFoodsOwnedByAsync(_userId, Arg.Any<CancellationToken>()).Returns([granola, friedBanana, oats]);
+
+        // Act
+        var result = await _sut.ListCustomAsync(_userId);
+
+        // Assert
+        result.Select(food => food.Name).Should().Equal("Aveia", "Banana frita", "granola caseira");
+    }
+
+    [Fact]
+    public async Task ListCustomAsync_ReturnsAnEmptyList_WhenTheUserHasNoCustomFoods()
+    {
+        // Arrange
+        _foodRepository.ListCustomFoodsOwnedByAsync(_userId, Arg.Any<CancellationToken>()).Returns([]);
+
+        // Act
+        var result = await _sut.ListCustomAsync(_userId);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ListCustomAsync_AsksOnlyForTheCallersOwnFoods()
+    {
+        // Arrange
+        _foodRepository.ListCustomFoodsOwnedByAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>()).Returns([]);
+
+        // Act
+        await _sut.ListCustomAsync(_userId);
+
+        // Assert
+        await _foodRepository.Received(1).ListCustomFoodsOwnedByAsync(_userId, Arg.Any<CancellationToken>());
+        await _foodRepository.DidNotReceive().ListCustomFoodsOwnedByAsync(_otherUserId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_ReplacesNameAndNutrition_KeepingIdSourceAndOwner()
+    {
+        // Arrange
+        var food = CreateCustomFood(_userId);
+        _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
+        var request = new UpdateCustomFoodRequest("  Whey baunilha ", 130, 25, 4, 2);
+
+        // Act
+        var result = await _sut.UpdateCustomAsync(_userId, food.Id, request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(food.Id.Value);
+        result.Name.Should().Be("Whey baunilha");
+        result.Source.Should().Be(nameof(FoodSource.Custom));
+        result.BaseUnitQuantity.Should().Be(100);
+        result.CaloriesPerBaseUnit.Should().Be(130);
+        result.ProteinPerBaseUnit.Should().Be(25);
+        result.CarbsPerBaseUnit.Should().Be(4);
+        result.FatPerBaseUnit.Should().Be(2);
+        await _foodRepository.Received(1).SaveAsync(
+            Arg.Is<Food>(saved => saved.Id == food.Id && saved.OwnerId == _userId && saved.Source == FoodSource.Custom),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_ReturnsNull_AndSavesNothing_WhenTheFoodDoesNotExist()
+    {
+        // Arrange
+        var id = FoodId.NewId();
+        _foodRepository.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns((Food?)null);
+
+        // Act
+        var result = await _sut.UpdateCustomAsync(_userId, id, new UpdateCustomFoodRequest("Whey", 130, 25, 4, 2));
+
+        // Assert
+        result.Should().BeNull();
+        await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_ReturnsNull_AndSavesNothing_WhenTheFoodBelongsToAnotherUser()
+    {
+        // Arrange
+        var othersFood = CreateCustomFood(_otherUserId);
+        _foodRepository.GetByIdAsync(othersFood.Id, Arg.Any<CancellationToken>()).Returns(othersFood);
+
+        // Act
+        var result = await _sut.UpdateCustomAsync(_userId, othersFood.Id, new UpdateCustomFoodRequest("Mine now", 1, 1, 1, 1));
+
+        // Assert
+        result.Should().BeNull();
+        await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_ReturnsNull_AndSavesNothing_ForASharedFood()
+    {
+        // Arrange
+        var sharedFood = CreateChickenBreast();
+        _foodRepository.GetByIdAsync(sharedFood.Id, Arg.Any<CancellationToken>()).Returns(sharedFood);
+
+        // Act
+        var result = await _sut.UpdateCustomAsync(_userId, sharedFood.Id, new UpdateCustomFoodRequest("Edited", 1, 1, 1, 1));
+
+        // Assert
+        result.Should().BeNull();
+        await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_Throws_AndSavesNothing_WhenTheNameIsLongerThanTheMaximumLength()
+    {
+        // Arrange
+        var food = CreateCustomFood(_userId);
+        _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
+
+        // Act
+        var act = () => _sut.UpdateCustomAsync(_userId, food.Id, new UpdateCustomFoodRequest(new string('a', 101), 120, 24, 3, 1.5));
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task UpdateCustomAsync_Throws_AndSavesNothing_WhenTheNameIsBlank(string blankName)
+    {
+        // Arrange
+        var food = CreateCustomFood(_userId);
+        _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
+
+        // Act
+        var act = () => _sut.UpdateCustomAsync(_userId, food.Id, new UpdateCustomFoodRequest(blankName, 120, 24, 3, 1.5));
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
     private static Food CreateChickenBreast() => Food.Create(
         FoodId.NewId(),
         "Chicken breast",

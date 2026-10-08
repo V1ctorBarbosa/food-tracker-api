@@ -16,9 +16,39 @@ public static class FoodEndpoints
 
         group.MapGet("/{id}", GetByIdAsync).WithName(RouteNames.GetById);
         group.MapGet("/search", SearchAsync).WithName(RouteNames.Search);
+        group.MapGet("/custom", ListCustomAsync).WithName(RouteNames.ListCustom);
         group.MapPost("/", CreateCustomAsync).WithName(RouteNames.CreateCustom);
+        group.MapPut("/{id}", UpdateCustomAsync).WithName(RouteNames.UpdateCustom);
 
         return app;
+    }
+
+    private static async Task<IResult> ListCustomAsync(
+        ClaimsPrincipal user,
+        FoodService foodService,
+        CancellationToken cancellationToken)
+    {
+        var userId = user.GetAuthenticatedUserId();
+        var foods = await foodService.ListCustomAsync(userId, cancellationToken);
+        return Results.Ok(foods);
+    }
+
+    private static async Task<IResult> UpdateCustomAsync(
+        ClaimsPrincipal user,
+        string id,
+        UpdateCustomFoodRequest request,
+        FoodService foodService,
+        CancellationToken cancellationToken)
+    {
+        var userId = user.GetAuthenticatedUserId();
+        var food = await foodService.UpdateCustomAsync(userId, new FoodId(id), request, cancellationToken);
+
+        if (food is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Ok(food);
     }
 
     private static async Task<IResult> GetByIdAsync(
@@ -67,5 +97,7 @@ public static class FoodEndpoints
         public const string GetById = "GetFoodById";
         public const string Search = "SearchFoods";
         public const string CreateCustom = "CreateCustomFood";
+        public const string ListCustom = "ListCustomFoods";
+        public const string UpdateCustom = "UpdateCustomFood";
     }
 }
