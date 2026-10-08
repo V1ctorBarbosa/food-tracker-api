@@ -72,12 +72,55 @@ public sealed class FoodService
         return visibleCachedFoods.Concat(externalFoods).Select(ToDto).ToList();
     }
 
+    /// <summary>The custom foods the user created, by name.</summary>
+    public async Task<IReadOnlyList<FoodDto>> ListCustomAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        var customFoods = await _foodRepository.ListCustomFoodsOwnedByAsync(userId, cancellationToken);
+
+        return customFoods
+            .OrderBy(food => food.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(ToDto)
+            .ToList();
+    }
+
+    /// <returns>
+    /// The updated food, or null when it does not exist, is not a custom food or belongs to someone
+    /// else. The three cases look the same to the caller, so one user cannot probe another's foods.
+    /// </returns>
+    public async Task<FoodDto?> UpdateCustomAsync(
+        UserId userId,
+        FoodId id,
+        UpdateCustomFoodRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCustomFoodNameIsAllowed(request.Name);
+
+        var existingFood = await _foodRepository.GetByIdAsync(id, cancellationToken);
+        if (existingFood is null || !IsEditableBy(existingFood, userId))
+        {
+            return null;
+        }
+
+        var updatedFood = Food.Create(
+            existingFood.Id,
+            request.Name,
+            existingFood.Source,
+            existingFood.ExternalId,
+            existingFood.BaseUnit,
+            new Kilocalories(request.Calories),
+            new Grams(request.Protein),
+            new Grams(request.Carbs),
+            new Grams(request.Fat),
+            existingFood.Servings,
+            existingFood.OwnerId);
+
+        await _foodRepository.SaveAsync(updatedFood, cancellationToken);
+        return ToDto(updatedFood);
+    }
+
     public async Task<FoodDto> CreateCustomAsync(UserId userId, CreateCustomFoodRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.Name is not null && request.Name.Trim().Length > MaximumCustomFoodNameLength)
-        {
-            throw new ArgumentException($"Name cannot be longer than {MaximumCustomFoodNameLength} characters.", nameof(request));
-        }
+        EnsureCustomFoodNameIsAllowed(request.Name);
 
         var food = Food.Create(
             FoodId.NewId(),
@@ -136,6 +179,16 @@ public sealed class FoodService
 
         return savedFoods;
     }
+
+    private static void EnsureCustomFoodNameIsAllowed(string? name)
+    {
+        if (name is not null && name.Trim().Length > MaximumCustomFoodNameLength)
+        {
+            throw new ArgumentException($"Name cannot be longer than {MaximumCustomFoodNameLength} characters.", nameof(name));
+        }
+    }
+
+    private static bool IsEditableBy(Food food, UserId userId) => food.Source == FoodSource.Custom && food.OwnerId == userId;
 
     private static bool IsShared(Food food) => food.OwnerId is null;
 

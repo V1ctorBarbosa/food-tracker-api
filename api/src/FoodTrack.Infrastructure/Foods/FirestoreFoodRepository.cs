@@ -95,6 +95,19 @@ public sealed class FirestoreFoodRepository : IFoodRepository
         }
     }
 
+    public async Task<IReadOnlyList<Food>> ListCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        var querySnapshot = await _firestoreDb.Collection(CollectionName)
+            .WhereEqualTo(nameof(FoodDocument.OwnerId), userId.Value)
+            .GetSnapshotAsync(cancellationToken);
+
+        // A custom food is created without servings and has no way to gain any, so listing skips the
+        // one-request-per-food servings lookup that a search needs.
+        return querySnapshot.Documents
+            .Select(foodSnapshot => FoodDocumentMapper.ToDomain(new FoodId(foodSnapshot.Id), foodSnapshot.ConvertTo<FoodDocument>(), []))
+            .ToList();
+    }
+
     public async Task DeleteCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default)
     {
         var query = _firestoreDb.Collection(CollectionName).WhereEqualTo(nameof(FoodDocument.OwnerId), userId.Value);

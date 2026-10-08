@@ -216,6 +216,25 @@
             "body": { "mode": "raw", "raw": "{\n  \"name\": \"My whey\",\n  \"calories\": 120,\n  \"protein\": 24,\n  \"carbs\": 3,\n  \"fat\": 1.5\n}" },
             "description": "Creates a personal food (FoodSource.Custom), always per 100g. Only visible to the authenticated user who created it -- it never shows up in another user's Search Foods results."
           }
+        },
+        {
+          "name": "List Custom Foods",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/foods/custom", "host": ["{{baseUrl}}"], "path": ["foods", "custom"] },
+            "description": "The authenticated user's own custom foods, ordered by name (case-insensitive). Never includes shared foods or another user's."
+          }
+        },
+        {
+          "name": "Update Custom Food",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/foods/:id", "host": ["{{baseUrl}}"], "path": ["foods", ":id"], "variable": [{ "key": "id", "value": "" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"My whey vanilla\",\n  \"calories\": 130,\n  \"protein\": 25,\n  \"carbs\": 4,\n  \"fat\": 2\n}" },
+            "description": "Replaces the name and the per-100g nutrition of one of the caller's own custom foods. 404 when the id does not exist, is a shared food or belongs to another user (the three look the same). Meals already logged keep the values they were saved with."
+          }
         }
       ]
     },
