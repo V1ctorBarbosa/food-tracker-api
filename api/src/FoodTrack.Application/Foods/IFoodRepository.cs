@@ -15,15 +15,15 @@ public interface IFoodRepository
     /// duplicate under a freshly minted one.</summary>
     Task<Food?> GetBySourceAndExternalIdAsync(FoodSource source, string externalId, CancellationToken cancellationToken = default);
 
-    /// <summary>Upserts the food and its servings as a single aggregate.</summary>
+    /// <summary>Creates or replaces the food.</summary>
     Task SaveAsync(Food food, CancellationToken cancellationToken = default);
 
-    /// <summary>Lists every cached food that came from <paramref name="source"/>, servings left out.</summary>
+    /// <summary>Lists every cached food that came from <paramref name="source"/>.</summary>
     Task<IReadOnlyList<Food>> ListBySourceAsync(FoodSource source, CancellationToken cancellationToken = default);
 
     /// <summary>Lists the custom foods the user created, in no particular order.</summary>
     Task<IReadOnlyList<Food>> ListCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes the custom foods the user created, servings included. The shared cache is untouched.</summary>
+    /// <summary>Deletes the custom foods the user created. The shared cache is untouched.</summary>
     Task DeleteCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default);
 }

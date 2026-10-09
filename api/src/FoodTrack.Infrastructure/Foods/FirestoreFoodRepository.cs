@@ -9,7 +9,6 @@ namespace FoodTrack.Infrastructure.Foods;
 public sealed class FirestoreFoodRepository : IFoodRepository
 {
     private const string CollectionName = "foods";
-    private const string ServingsSubcollectionName = "servings";
 
     private readonly FirestoreDb _firestoreDb;
 
@@ -27,8 +26,7 @@ public sealed class FirestoreFoodRepository : IFoodRepository
             return null;
         }
 
-        var servings = await LoadServingsAsync(foodDocumentReference, cancellationToken);
-        return FoodDocumentMapper.ToDomain(id, snapshot.ConvertTo<FoodDocument>(), servings);
+        return FoodDocumentMapper.ToDomain(id, snapshot.ConvertTo<FoodDocument>());
     }
 
     public async Task<IReadOnlyList<Food>> SearchByNameAsync(string query, CancellationToken cancellationToken = default)
@@ -48,18 +46,10 @@ public sealed class FirestoreFoodRepository : IFoodRepository
             .WhereLessThanOrEqualTo(nameof(FoodDocument.NameLower), prefixUpperBound)
             .GetSnapshotAsync(cancellationToken);
 
-        var matches = querySnapshot.Documents
+        return querySnapshot.Documents
             .Select(foodSnapshot => (Snapshot: foodSnapshot, Document: foodSnapshot.ConvertTo<FoodDocument>()))
             .Where(match => FoodNameMatcher.MatchesAllWords(match.Document.NameLower, queryLower))
-            .ToList();
-
-        // Each match's servings live in its own subcollection, so loading them is inherently one
-        // request per match -- run them concurrently instead of one at a time to avoid paying for
-        // that in latency too.
-        var servingsByMatch = await Task.WhenAll(matches.Select(match => LoadServingsAsync(match.Snapshot.Reference, cancellationToken)));
-
-        return matches
-            .Zip(servingsByMatch, (match, servings) => FoodDocumentMapper.ToDomain(new FoodId(match.Snapshot.Id), match.Document, servings))
+            .Select(match => FoodDocumentMapper.ToDomain(new FoodId(match.Snapshot.Id), match.Document))
             .ToList();
     }
 
@@ -77,22 +67,13 @@ public sealed class FirestoreFoodRepository : IFoodRepository
             return null;
         }
 
-        var foodId = new FoodId(documentSnapshot.Id);
-        var servings = await LoadServingsAsync(documentSnapshot.Reference, cancellationToken);
-        return FoodDocumentMapper.ToDomain(foodId, documentSnapshot.ConvertTo<FoodDocument>(), servings);
+        return FoodDocumentMapper.ToDomain(new FoodId(documentSnapshot.Id), documentSnapshot.ConvertTo<FoodDocument>());
     }
 
     public async Task SaveAsync(Food food, CancellationToken cancellationToken = default)
     {
         var foodDocumentReference = _firestoreDb.Collection(CollectionName).Document(food.Id.Value);
         await foodDocumentReference.SetAsync(FoodDocumentMapper.ToDocument(food), cancellationToken: cancellationToken);
-
-        foreach (var serving in food.Servings)
-        {
-            await foodDocumentReference.Collection(ServingsSubcollectionName)
-                .Document(serving.Id.Value)
-                .SetAsync(FoodServingDocumentMapper.ToDocument(serving), cancellationToken: cancellationToken);
-        }
     }
 
     public async Task<IReadOnlyList<Food>> ListCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default)
@@ -101,10 +82,8 @@ public sealed class FirestoreFoodRepository : IFoodRepository
             .WhereEqualTo(nameof(FoodDocument.OwnerId), userId.Value)
             .GetSnapshotAsync(cancellationToken);
 
-        // A custom food is created without servings and has no way to gain any, so listing skips the
-        // one-request-per-food servings lookup that a search needs.
         return querySnapshot.Documents
-            .Select(foodSnapshot => FoodDocumentMapper.ToDomain(new FoodId(foodSnapshot.Id), foodSnapshot.ConvertTo<FoodDocument>(), []))
+            .Select(foodSnapshot => FoodDocumentMapper.ToDomain(new FoodId(foodSnapshot.Id), foodSnapshot.ConvertTo<FoodDocument>()))
             .ToList();
     }
 
@@ -115,24 +94,13 @@ public sealed class FirestoreFoodRepository : IFoodRepository
             .GetSnapshotAsync(cancellationToken);
 
         return querySnapshot.Documents
-            .Select(foodSnapshot => FoodDocumentMapper.ToDomain(new FoodId(foodSnapshot.Id), foodSnapshot.ConvertTo<FoodDocument>(), []))
+            .Select(foodSnapshot => FoodDocumentMapper.ToDomain(new FoodId(foodSnapshot.Id), foodSnapshot.ConvertTo<FoodDocument>()))
             .ToList();
     }
 
     public async Task DeleteCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default)
     {
         var query = _firestoreDb.Collection(CollectionName).WhereEqualTo(nameof(FoodDocument.OwnerId), userId.Value);
-        await FirestoreBulkDeletion.DeleteWithSubcollectionAsync(_firestoreDb, query, ServingsSubcollectionName, cancellationToken);
-    }
-
-    private static async Task<IReadOnlyList<FoodServing>> LoadServingsAsync(
-        DocumentReference foodDocumentReference,
-        CancellationToken cancellationToken)
-    {
-        var servingsSnapshot = await foodDocumentReference.Collection(ServingsSubcollectionName).GetSnapshotAsync(cancellationToken);
-
-        return servingsSnapshot.Documents
-            .Select(doc => FoodServingDocumentMapper.ToDomain(new FoodServingId(doc.Id), doc.ConvertTo<FoodServingDocument>()))
-            .ToList();
+        await FirestoreBulkDeletion.DeleteMatchingAsync(_firestoreDb, query, cancellationToken);
     }
 }

@@ -24,7 +24,7 @@ It also hid a data bug: for drinks, Open Food Facts reports nutrients per 100 ml
 | D4 | **No household measures** (can, glass, bottle, spoon). |
 | D5 | **Water entries stay separate.** A drink never counts toward the water goal. |
 | D6 | **No new data source.** TACO and Open Food Facts are enough. |
-| D7 | `FoodServing` and the `FoodServingId + ServingCount` path become unused and are removed in a **separate cleanup PR**. |
+| D7 | `FoodServing` and the `FoodServingId + ServingCount` path become unused and are removed in a **separate cleanup PR** (`improvement/remove-food-serving`). |
 | D8 | Mass and volume are never converted into each other at calculation time. The only "100 g ≈ 100 ml" reading lives in the TACO mapper, as an import assumption. |
 | D9 | **Yogurt stays in grams**, as Brazilian labels state it. |
 | D10 | **Only custom foods are editable**, every field, including g ↔ ml. Shared TACO/Open Food Facts foods are never edited by users. |
