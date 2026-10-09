@@ -400,6 +400,45 @@ public sealed class MealServiceTest
         new Grams(carbs),
         new Grams(fat));
 
+    [Fact]
+    public async Task UpdateAsync_ThrowsArgumentException_AndSavesNothing_WhenAnItemIsInGramsForADrink()
+    {
+        // Arrange: the client re-sends an item logged in grams before the food was reclassified as a drink.
+        var cocaCola = Food.Create(
+            FoodId.NewId(),
+            "Coca-Cola",
+            FoodSource.OpenFoodFacts,
+            "7894900011708",
+            new BaseUnit(100, MeasurementUnit.Milliliter),
+            new Kilocalories(42),
+            new Grams(0),
+            new Grams(10.5),
+            new Grams(0));
+        _foodRepository.GetByIdAsync(cocaCola.Id, Arg.Any<CancellationToken>()).Returns(cocaCola);
+        var existingMeal = Meal.Create(MealId.NewId(), _userId, DateTimeOffset.UtcNow, MealType.Lunch, [CreateItem(cocaCola.Id)]);
+        _mealRepository.GetByIdAsync(existingMeal.Id, _userId, Arg.Any<CancellationToken>()).Returns(existingMeal);
+        var request = new UpdateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(cocaCola.Id.Value, 350, nameof(MeasurementUnit.Gram), null, null)]);
+
+        // Act
+        var act = () => _sut.UpdateAsync(_userId, existingMeal.Id, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*Coca-Cola*");
+        await _mealRepository.DidNotReceive().UpdateAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
+    }
+
+    private static MealItem CreateItem(FoodId foodId) => MealItem.Create(
+        MealItemId.NewId(),
+        foodId,
+        350,
+        MeasurementUnit.Gram,
+        new Kilocalories(147),
+        new Grams(0),
+        new Grams(36.75),
+        new Grams(0));
+
     private static Food CreateFood(string name, int caloriesPer100g, double proteinPer100g, double carbsPer100g, double fatPer100g) =>
         Food.Create(
             FoodId.NewId(),

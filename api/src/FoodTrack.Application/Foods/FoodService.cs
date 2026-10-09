@@ -1,3 +1,4 @@
+using FoodTrack.Application.Meals;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Foods;
 using FoodTrack.Domain.Users;
@@ -20,11 +21,13 @@ public sealed class FoodService
 
     private readonly IFoodRepository _foodRepository;
     private readonly IExternalFoodSource _externalFoodSource;
+    private readonly IMealRepository _mealRepository;
 
-    public FoodService(IFoodRepository foodRepository, IExternalFoodSource externalFoodSource)
+    public FoodService(IFoodRepository foodRepository, IExternalFoodSource externalFoodSource, IMealRepository mealRepository)
     {
         _foodRepository = foodRepository;
         _externalFoodSource = externalFoodSource;
+        _mealRepository = mealRepository;
     }
 
     public async Task<FoodDto?> GetByIdAsync(FoodId id, UserId userId, CancellationToken cancellationToken = default)
@@ -83,6 +86,11 @@ public sealed class FoodService
             .ToList();
     }
 
+    /// <summary>
+    /// Replaces the name, the base unit and the nutrition of a custom food. When the base unit moves
+    /// between g and ml, the items already logged for the food move with it first, so a meal holding
+    /// them can still be edited; if saving the food then fails, retrying the same edit finishes the job.
+    /// </summary>
     /// <returns>
     /// The updated food, or null when it does not exist, is not a custom food or belongs to someone
     /// else. The three cases look the same to the caller, so one user cannot probe another's foods.
@@ -101,12 +109,13 @@ public sealed class FoodService
             return null;
         }
 
+        var baseUnit = CustomFoodBaseUnit.Resolve(request.BaseUnitType, existingFood.BaseUnit.Unit);
         var updatedFood = Food.Create(
             existingFood.Id,
             request.Name,
             existingFood.Source,
             existingFood.ExternalId,
-            existingFood.BaseUnit,
+            baseUnit,
             new Kilocalories(request.Calories),
             new Grams(request.Protein),
             new Grams(request.Carbs),
@@ -114,6 +123,7 @@ public sealed class FoodService
             existingFood.Servings,
             existingFood.OwnerId);
 
+        await ReclassifyLoggedItemsIfTheCategoryChangedAsync(existingFood, updatedFood, cancellationToken);
         await _foodRepository.SaveAsync(updatedFood, cancellationToken);
         return ToDto(updatedFood);
     }
@@ -121,13 +131,14 @@ public sealed class FoodService
     public async Task<FoodDto> CreateCustomAsync(UserId userId, CreateCustomFoodRequest request, CancellationToken cancellationToken = default)
     {
         EnsureCustomFoodNameIsAllowed(request.Name);
+        var baseUnit = CustomFoodBaseUnit.Resolve(request.BaseUnitType, MeasurementUnit.Gram);
 
         var food = Food.Create(
             FoodId.NewId(),
             request.Name,
             FoodSource.Custom,
             externalId: null,
-            new BaseUnit(100, MeasurementUnit.Gram),
+            baseUnit,
             new Kilocalories(request.Calories),
             new Grams(request.Protein),
             new Grams(request.Carbs),
@@ -178,6 +189,20 @@ public sealed class FoodService
         }
 
         return savedFoods;
+    }
+
+    private async Task ReclassifyLoggedItemsIfTheCategoryChangedAsync(
+        Food existingFood,
+        Food updatedFood,
+        CancellationToken cancellationToken)
+    {
+        var updatedCategory = updatedFood.BaseUnit.Unit.GetCategory();
+        if (existingFood.BaseUnit.Unit.GetCategory() == updatedCategory)
+        {
+            return;
+        }
+
+        await _mealRepository.ReclassifyItemUnitsAsync(updatedFood.Id, updatedCategory, cancellationToken);
     }
 
     private static void EnsureCustomFoodNameIsAllowed(string? name)

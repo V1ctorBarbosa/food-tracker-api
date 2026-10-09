@@ -1,4 +1,6 @@
 using FoodTrack.Application.Common;
+using FoodTrack.Domain.Common;
+using FoodTrack.Domain.Foods;
 using FoodTrack.Domain.Meals;
 using FoodTrack.Domain.Users;
 
@@ -25,6 +27,14 @@ public interface IMealRepository
     Task UpdateAsync(Meal meal, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(MealId id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves every logged item of the food to <paramref name="category"/> with
+    /// <see cref="MeasurementUnitReclassification"/>, so they match a food that changed between g and ml.
+    /// Items already in that category are left alone, so running it again changes nothing.
+    /// The nutritional snapshot of each item is not touched.
+    /// </summary>
+    Task ReclassifyItemUnitsAsync(FoodId foodId, MeasurementUnitCategory category, CancellationToken cancellationToken = default);
 
     /// <summary>Deletes every meal the user logged, items included.</summary>
     Task DeleteAllByUserAsync(UserId userId, CancellationToken cancellationToken = default);

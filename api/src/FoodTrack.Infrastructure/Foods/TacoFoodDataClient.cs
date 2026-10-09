@@ -64,7 +64,7 @@ public sealed class TacoFoodDataClient : IExternalFoodSource
             detail.Description,
             FoodSource.Taco,
             detail.Id.ToString(CultureInfo.InvariantCulture),
-            new BaseUnit(100, MeasurementUnit.Gram),
+            new BaseUnit(100, TacoBaseUnitResolver.Resolve(detail.Id, detail.Category)),
             new Kilocalories((int)Math.Round(calories)),
             new Grams(protein),
             new Grams(carbs),

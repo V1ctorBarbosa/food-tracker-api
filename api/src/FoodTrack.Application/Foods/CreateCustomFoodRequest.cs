@@ -1,4 +1,13 @@
 namespace FoodTrack.Application.Foods;
 
-/// <summary>Always per 100g -- matches every other <see cref="FoodDto"/> base unit convention.</summary>
-public sealed record CreateCustomFoodRequest(string Name, int Calories, double Protein, double Carbs, double Fat);
+/// <summary>
+/// Nutrition is per 100 of <see cref="BaseUnitType"/>: "Gram" for a food, "Milliliter" for a drink.
+/// Left out, it is "Gram".
+/// </summary>
+public sealed record CreateCustomFoodRequest(
+    string Name,
+    int Calories,
+    double Protein,
+    double Carbs,
+    double Fat,
+    string? BaseUnitType = null);

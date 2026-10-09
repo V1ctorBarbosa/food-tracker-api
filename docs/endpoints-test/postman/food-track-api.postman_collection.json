@@ -214,7 +214,17 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/foods", "host": ["{{baseUrl}}"], "path": ["foods"] },
             "body": { "mode": "raw", "raw": "{\n  \"name\": \"My whey\",\n  \"calories\": 120,\n  \"protein\": 24,\n  \"carbs\": 3,\n  \"fat\": 1.5\n}" },
-            "description": "Creates a personal food (FoodSource.Custom), always per 100g. Only visible to the authenticated user who created it -- it never shows up in another user's Search Foods results."
+            "description": "Creates a personal food (FoodSource.Custom). Nutrition is per 100 of baseUnitType: Gram (a food) or Milliliter (a drink); left out, as here, it is Gram. Only visible to the authenticated user who created it -- it never shows up in another user's Search Foods results."
+          }
+        },
+        {
+          "name": "Create Custom Drink",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/foods", "host": ["{{baseUrl}}"], "path": ["foods"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Suco verde\",\n  \"calories\": 45,\n  \"protein\": 0.5,\n  \"carbs\": 10,\n  \"fat\": 0.1,\n  \"baseUnitType\": \"Milliliter\"\n}" },
+            "description": "Same endpoint as Create Custom Food, for a drink: nutrition per 100 ml, and meal items for it are logged in Milliliter. Any baseUnitType other than Gram or Milliliter is a 400."
           }
         },
         {
@@ -232,8 +242,8 @@
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/foods/:id", "host": ["{{baseUrl}}"], "path": ["foods", ":id"], "variable": [{ "key": "id", "value": "" }] },
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"My whey vanilla\",\n  \"calories\": 130,\n  \"protein\": 25,\n  \"carbs\": 4,\n  \"fat\": 2\n}" },
-            "description": "Replaces the name and the per-100g nutrition of one of the caller's own custom foods. 404 when the id does not exist, is a shared food or belongs to another user (the three look the same). Meals already logged keep the values they were saved with."
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"My whey vanilla\",\n  \"calories\": 130,\n  \"protein\": 25,\n  \"carbs\": 4,\n  \"fat\": 2,\n  \"baseUnitType\": \"Gram\"\n}" },
+            "description": "Replaces the name, the base unit and the per-100 nutrition of one of the caller's own custom foods. baseUnitType is Gram or Milliliter; left out, the food keeps its unit. Switching it also moves the items already logged for the food to the new unit (350 g becomes 350 ml), keeping their nutrition. 404 when the id does not exist, is a shared food or belongs to another user (the three look the same). Meals already logged keep the values they were saved with."
           }
         }
       ]
@@ -276,7 +286,7 @@
               "mode": "raw",
               "raw": "{\n  \"mealType\": \"Lunch\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 200,\n      \"unit\": \"Gram\",\n      \"foodServingId\": null,\n      \"servingCount\": null\n    }\n  ],\n  \"loggedAt\": \"2026-09-03T19:30:00-03:00\"\n}"
             },
-            "description": "Each item needs exactly one of two shapes: (quantity + unit) for a raw amount, or (foodServingId + servingCount) to log by a named serving from that food's servings list (e.g. \"1 can\"). unit: Gram|Kilogram|Milliliter|Liter. mealType: Breakfast|Lunch|Dinner|Snack. Nutrition is computed and snapshotted server-side -- do not send calories/protein/carbs/fat. LoggedAt is set to the current server time and returned in the response; there is no date field on create."
+            "description": "Each item needs exactly one of two shapes: (quantity + unit) for a raw amount, or (foodServingId + servingCount) to log by a named serving from that food's servings list (e.g. \"1 can\"). unit: Gram|Kilogram for a food, Milliliter|Liter for a drink (the food's baseUnitType says which); the other kind is a 400. mealType: Breakfast|Lunch|Dinner|Snack. Nutrition is computed and snapshotted server-side -- do not send calories/protein/carbs/fat. LoggedAt is set to the current server time and returned in the response; there is no date field on create."
           }
         },
         {

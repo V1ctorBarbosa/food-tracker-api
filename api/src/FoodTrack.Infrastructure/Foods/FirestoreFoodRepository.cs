@@ -108,6 +108,17 @@ public sealed class FirestoreFoodRepository : IFoodRepository
             .ToList();
     }
 
+    public async Task<IReadOnlyList<Food>> ListBySourceAsync(FoodSource source, CancellationToken cancellationToken = default)
+    {
+        var querySnapshot = await _firestoreDb.Collection(CollectionName)
+            .WhereEqualTo(nameof(FoodDocument.Source), source.ToString())
+            .GetSnapshotAsync(cancellationToken);
+
+        return querySnapshot.Documents
+            .Select(foodSnapshot => FoodDocumentMapper.ToDomain(new FoodId(foodSnapshot.Id), foodSnapshot.ConvertTo<FoodDocument>(), []))
+            .ToList();
+    }
+
     public async Task DeleteCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default)
     {
         var query = _firestoreDb.Collection(CollectionName).WhereEqualTo(nameof(FoodDocument.OwnerId), userId.Value);

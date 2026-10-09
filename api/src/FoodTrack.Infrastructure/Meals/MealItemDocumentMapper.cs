@@ -16,6 +16,10 @@ internal static class MealItemDocumentMapper
         new Grams(document.Carbs),
         new Grams(document.Fat));
 
+    /// <summary>The stored unit name of an item, moved to <paramref name="category"/> with <see cref="MeasurementUnitReclassification"/>.</summary>
+    public static string ReclassifyUnit(string storedUnit, MeasurementUnitCategory category) =>
+        MeasurementUnitReclassification.Reclassify(Enum.Parse<MeasurementUnit>(storedUnit), category).ToString();
+
     public static MealItemDocument ToDocument(MealItem item) => new()
     {
         FoodId = item.FoodId.Value,

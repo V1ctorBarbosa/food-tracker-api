@@ -1,6 +1,8 @@
 using FoodTrack.Application.Common;
 using FoodTrack.Application.Meals;
 using FoodTrack.Infrastructure.Firebase;
+using FoodTrack.Domain.Common;
+using FoodTrack.Domain.Foods;
 using FoodTrack.Domain.Meals;
 using FoodTrack.Domain.Users;
 using Google.Cloud.Firestore;
@@ -133,6 +135,37 @@ public sealed class FirestoreMealRepository : IMealRepository
 
             transaction.Delete(mealDocumentReference);
         }, cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Finds the food's items across every meal with a collection group query on the items
+    /// subcollection, which needs the FoodId index declared in infra/firebase/firestore.indexes.json.
+    /// </summary>
+    public async Task ReclassifyItemUnitsAsync(
+        FoodId foodId,
+        MeasurementUnitCategory category,
+        CancellationToken cancellationToken = default)
+    {
+        var itemsSnapshot = await _firestoreDb.CollectionGroup(ItemsSubcollectionName)
+            .WhereEqualTo(nameof(MealItemDocument.FoodId), foodId.Value)
+            .GetSnapshotAsync(cancellationToken);
+
+        var unitChanges = itemsSnapshot.Documents
+            .Select(itemSnapshot => (Reference: itemSnapshot.Reference, Unit: itemSnapshot.ConvertTo<MealItemDocument>().Unit))
+            .Select(item => (item.Reference, item.Unit, ReclassifiedUnit: MealItemDocumentMapper.ReclassifyUnit(item.Unit, category)))
+            .Where(item => item.ReclassifiedUnit != item.Unit)
+            .ToList();
+
+        foreach (var chunk in unitChanges.Chunk(FirestoreBulkDeletion.MaximumWritesPerBatch))
+        {
+            var batch = _firestoreDb.StartBatch();
+            foreach (var unitChange in chunk)
+            {
+                batch.Update(unitChange.Reference, nameof(MealItemDocument.Unit), unitChange.ReclassifiedUnit);
+            }
+
+            await batch.CommitAsync(cancellationToken);
+        }
     }
 
     public async Task DeleteAllByUserAsync(UserId userId, CancellationToken cancellationToken = default)

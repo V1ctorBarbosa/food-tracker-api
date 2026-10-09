@@ -594,7 +594,7 @@ the whole search. `Food.Source` (`FoodSource` enum) records which one a cached f
 `Taco`, `OpenFoodFacts`, or `Custom`. `Usda` is a retired value kept only so a food cached from
 an earlier USDA search still parses -- USDA is no longer queried live.
 
-It will also be possible to create custom foods in the future, such as:
+Custom foods can also be created, such as:
 
 ```text
 My whey
@@ -606,50 +606,33 @@ Brand X rice
 
 # 15. Units of measurement
 
-Do not use grams as the only universal unit.
+Food and drinks are measured differently, and the app never mixes the two.
 
-Conceptually separate:
-
-## Mass
+## Mass, for food
 
 ```text
 g
 kg
 ```
 
-## Volume
+## Volume, for drinks
 
 ```text
 ml
 L
 ```
 
-## Count
+Each `Food` is either a food (measured by mass) or a drink (measured by volume); its base unit says which (section 16). There is no separate "food or drink" flag. The user logs a quantity in the food's own unit, and the app always offers grams for a food and milliliters for a drink, starting at 100.
 
-```text
-unit
-```
+There are no household measures (can, glass, cup, spoon). Knowing that a can holds 350 ml is the user's job; the app does not keep a catalog of containers.
 
-## Specific servings
-
-```text
-can
-glass
-cup
-container
-bottle
-tablespoon
-teaspoon
-etc.
-```
-
-The user can log the food (or water) in whatever unit feels most natural, while the backend converts it to the base nutritional unit.
+Water is logged on its own (section 9) and never becomes a `Food`. Drinking a soda does not count toward the water goal.
 
 ---
 
 # 16. Base nutritional unit
 
-Each `Food` has a base unit used in calculations.
+Each `Food` has a base unit: always 100, of grams for a food or of milliliters for a drink. Nutrition values are per that base unit.
 
 Examples:
 
@@ -664,73 +647,17 @@ Coca-Cola
 42 kcal / 100ml
 ```
 
-The calculation uses the base unit.
+Where the base unit comes from:
+
+- **Open Food Facts**: the unit in the product's package quantity (`"350ml"` → ml, `"500 g"` → g), or ml when the quantity has no unit but the product is in the `en:beverages` category. Open Food Facts already reports a drink's nutrients per 100 ml (in fields still named `_100g`), so the values are used as they come.
+- **TACO**: ml for the "Bebidas" category and for a fixed list of liquids filed elsewhere (juices, milks); g for everything else, yogurts included. TACO measures everything per 100 g, so for those drinks the values are read as per 100 ml. Drinks weigh 0.95 to 1.05 g per ml, so the error stays under 5%.
+- **Custom foods**: the user picks "Comida" (g) or "Bebida" (ml), and can change it later. Changing it moves the amounts already logged for that food to the new unit, number unchanged (350 g becomes 350 ml), keeping their nutritional snapshot.
 
 ---
 
 # 17. FoodServing
 
-To represent servings such as a can, glass, cup, or container, use a conceptual `FoodServing` structure.
-
-Fields:
-
-```text
-FoodServing
---------------------------
-id
-foodId
-name
-quantity
-unit
-```
-
-Example:
-
-```text
-Coca-Cola
-
-Base:
-100 ml
-
-Servings:
-1 can = 350 ml
-1 glass = 250 ml
-1 bottle = 600 ml
-```
-
-If the user logs:
-
-```text
-1 can
-```
-
-the system converts:
-
-```text
-1 can
-↓
-350 ml
-↓
-147 kcal
-```
-
-based on 42 kcal/100 ml.
-
-Another example:
-
-```text
-Yogurt
-
-Base:
-100g
-
-Servings:
-1 container = 170g
-1 cup = 245g
-1 tablespoon = 15g
-```
-
-Water logging can reuse this same concept for common servings (e.g. 1 glass = 250 ml, 1 bottle = 500 ml) without needing a `Food`/`FoodServing` record, since water has no nutritional value to calculate — only a volume to sum.
+`FoodServing` (a named portion such as "1 can = 350 ml") still exists in the model and in `MealItemRequest`, but nothing creates servings any more: section 15 dropped household measures. It is due to be removed.
 
 ---
 
@@ -751,14 +678,11 @@ But:
 100 ml of flour ≠ 100g
 ```
 
-Mass ↔ volume conversion depends on the food's density.
+Mass ↔ volume conversion depends on the food's density, so it never happens at calculation time:
 
-Therefore:
-
-- g/kg are units of mass;
-- ml/L are units of volume;
-- can/glass/cup/container etc. are food-specific servings;
-- special conversions must be defined per food/serving.
+- g/kg convert into each other, and ml/L convert into each other;
+- logging grams of a drink, or milliliters of a food, is rejected with a 400;
+- the only "100 g ≈ 100 ml" reading is the one-time import of TACO drinks described in section 16.
 
 ---
 
@@ -791,16 +715,15 @@ The same principle applies to:
 - carbohydrates;
 - fat.
 
-For a serving:
+A drink works the same way, in milliliters:
 
 ```text
-1 can
-↓
+Coca-Cola
+42 kcal / 100ml
+
 350 ml
 ↓
-value per 100 ml
-↓
-final calories
+350 / 100 * 42 = 147 kcal
 ```
 
 The API must perform these calculations.

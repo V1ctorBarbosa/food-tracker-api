@@ -63,6 +63,23 @@ public sealed class Food
     /// <summary>Shared foods are visible to everyone; a custom food only to the user who created it.</summary>
     public bool IsVisibleTo(UserId userId) => OwnerId is null || OwnerId == userId;
 
+    /// <summary>
+    /// The same food with its base unit moved to <paramref name="unit"/>, keeping the base quantity
+    /// and the nutrition values: "42 kcal per 100 g" becomes "42 kcal per 100 ml".
+    /// </summary>
+    public Food MeasuredIn(MeasurementUnit unit) => Create(
+        Id,
+        Name,
+        Source,
+        ExternalId,
+        new BaseUnit(BaseUnit.Quantity, unit),
+        CaloriesPerBaseUnit,
+        ProteinPerBaseUnit,
+        CarbsPerBaseUnit,
+        FatPerBaseUnit,
+        Servings,
+        OwnerId);
+
     public static Food Create(
         FoodId id,
         string name,

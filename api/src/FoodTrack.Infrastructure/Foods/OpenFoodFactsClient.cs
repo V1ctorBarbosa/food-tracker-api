@@ -8,8 +8,8 @@ namespace FoodTrack.Infrastructure.Foods;
 /// <summary>
 /// Queries Open Food Facts' search-a-licious endpoint, scoped to Brazilian products in
 /// Portuguese -- the crowdsourced branded-product counterpart to <see cref="TacoFoodDataClient"/>'s
-/// generic ingredients (docs section 14). Every result is reported per 100g: Open Food
-/// Facts' nutriment fields use the "_100g" suffix uniformly, including for liquids.
+/// generic ingredients (docs section 14). Each result is per 100 g or per 100 ml, as
+/// <see cref="OpenFoodFactsBaseUnitResolver"/> decides.
 /// </summary>
 public sealed class OpenFoodFactsClient : IExternalFoodSource
 {
@@ -31,7 +31,7 @@ public sealed class OpenFoodFactsClient : IExternalFoodSource
         var searchExpression = $"{query} {BrazilCountryFilter}";
         var requestUri =
             $"search?q={Uri.EscapeDataString(searchExpression)}&langs={PortugueseLanguage}&page_size={PageSize}" +
-            "&fields=code,product_name,brands,nutriments";
+            "&fields=code,product_name,brands,quantity,categories_tags,nutriments";
 
         var response = await _httpClient.GetFromJsonAsync<OpenFoodFactsSearchResponseDto>(requestUri, cancellationToken);
         if (response is null)
@@ -69,7 +69,7 @@ public sealed class OpenFoodFactsClient : IExternalFoodSource
             BuildDisplayName(hit),
             FoodSource.OpenFoodFacts,
             hit.Code,
-            new BaseUnit(100, MeasurementUnit.Gram),
+            new BaseUnit(100, OpenFoodFactsBaseUnitResolver.Resolve(hit.Quantity, hit.CategoriesTags)),
             new Kilocalories((int)Math.Round(calories)),
             new Grams(protein),
             new Grams(carbs),

@@ -18,6 +18,9 @@ public interface IFoodRepository
     /// <summary>Upserts the food and its servings as a single aggregate.</summary>
     Task SaveAsync(Food food, CancellationToken cancellationToken = default);
 
+    /// <summary>Lists every cached food that came from <paramref name="source"/>, servings left out.</summary>
+    Task<IReadOnlyList<Food>> ListBySourceAsync(FoodSource source, CancellationToken cancellationToken = default);
+
     /// <summary>Lists the custom foods the user created, in no particular order.</summary>
     Task<IReadOnlyList<Food>> ListCustomFoodsOwnedByAsync(UserId userId, CancellationToken cancellationToken = default);
 
