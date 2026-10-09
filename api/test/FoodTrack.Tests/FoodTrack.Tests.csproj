@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\FoodTrack.Application\FoodTrack.Application.csproj" />
     <ProjectReference Include="..\..\src\FoodTrack.Infrastructure\FoodTrack.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\FoodTrack.Api\FoodTrack.Api.csproj" />
+    <ProjectReference Include="..\..\src\FoodTrack.Migrations\FoodTrack.Migrations.csproj" />
   </ItemGroup>
 
 </Project>
