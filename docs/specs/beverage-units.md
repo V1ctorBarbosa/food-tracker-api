@@ -109,12 +109,16 @@ For Open Food Facts the relabelled items are exact: the stored nutrients were al
 
 ## 6. Rollout
 
-1. Deploy the Firestore index: from `infra/firebase`, `firebase deploy --only firestore:indexes`. Wait until it shows as enabled in the console. Without it, changing a custom food between g and ml fails (other edits do not need it).
-2. Merge the backend PR (the deploy workflow ships it).
-3. Dry-run the migration, read the report, then run it with `--Apply true`.
-4. Check a known drink (Coca-Cola) and an old meal containing it: the meal opens and saves, with the same numbers.
-5. Frontend PR, then release the app.
+The app ships **before** the backend. Today's app sends `unit: 'Gram'` for every item, so once the backend caches a drink as ml, that app gets a `400` logging it. The new app sends `food.baseUnitType`, which is `Gram` for everything the old backend returns, so it works against both.
+
+1. Frontend PR (send `baseUnitType` as the item unit, labels, Comida/Bebida selector), then release the app.
+2. Deploy the Firestore index: from `infra/firebase`, `firebase deploy --only firestore:indexes`. Wait until it shows as enabled in the console. Without it, changing a custom food between g and ml fails (other edits do not need it).
+3. Merge the backend PR (the deploy workflow ships it).
+4. Dry-run the migration, read the report, then run it with `--Apply true`.
+5. Check a known drink (Coca-Cola) and an old meal containing it: the meal opens and saves, with the same numbers.
 6. Separate PR: remove `FoodServing` (D7).
+
+The Comida/Bebida selector in step 1 only has an effect once the backend is deployed; before that the backend ignores `baseUnitType` and saves grams.
 
 ## 7. Acceptance checks
 
