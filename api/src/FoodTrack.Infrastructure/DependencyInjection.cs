@@ -73,7 +73,7 @@ public static class DependencyInjection
     {
         services.AddOptions<AnthropicOptions>().Bind(configuration.GetSection(AnthropicOptions.SectionName)).ValidateDataAnnotations();
         services.AddOptions<MealPhotoStorageOptions>().Bind(configuration.GetSection(MealPhotoStorageOptions.SectionName)).ValidateDataAnnotations();
-        services.AddOptions<MealEstimateAccessOptions>().Bind(configuration.GetSection(MealEstimateAccessOptions.SectionName));
+        services.AddOptions<MealEstimateAccessOptions>().Bind(configuration.GetSection(MealEstimateAccessOptions.SectionName)).ValidateDataAnnotations();
 
         services.AddSingleton(serviceProvider => new AnthropicClient
         {
@@ -86,5 +86,6 @@ public static class DependencyInjection
         services.AddScoped<IMealEstimator, ClaudeMealEstimator>();
         services.AddScoped<IMealPhotoStorage, S3MealPhotoStorage>();
         services.AddSingleton<IMealEstimateAccessPolicy, ConfigurationMealEstimateAccessPolicy>();
+        services.AddScoped<IMealEstimateQuota, FirestoreMealEstimateQuota>();
     }
 }

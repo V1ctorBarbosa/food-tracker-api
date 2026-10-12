@@ -327,7 +327,7 @@
     },
     {
       "name": "Meal Estimates",
-      "description": "AI estimates of a meal from a photo, a description, or both (docs/specs/meal-ai-estimate.md). Only users on the MealEstimates:AllowedUserIds allowlist may call these (403 MealEstimateAccessDenied otherwise; GET /profile reports it as canEstimateMeals), and each user gets 20 calls an hour across both routes (429). Nothing is saved here: send the returned items to Create Meal.",
+      "description": "AI estimates of a meal from a photo, a description, or both (docs/specs/meal-ai-estimate.md). Only users on the MealEstimates:AllowedUserIds allowlist may call these (403 MealEstimateAccessDenied otherwise; GET /profile reports it as canEstimateMeals), and each user gets 20 calls an hour across both routes (429 TooManyRequests). Estimates are also capped at 300 a month across every user (429 MonthlyEstimateLimitReached, until the next UTC month). Nothing is saved here: send the returned items to Create Meal.",
       "item": [
         {
           "name": "Create Photo Upload Slot",

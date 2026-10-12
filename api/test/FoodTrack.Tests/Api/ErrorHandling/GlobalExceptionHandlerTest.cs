@@ -70,6 +70,21 @@ public sealed class GlobalExceptionHandlerTest
     }
 
     [Fact]
+    public async Task TryHandleAsync_WritesTooManyRequests_WhenTheMonthlyEstimateLimitIsReached()
+    {
+        // Arrange
+        var httpContext = CreateHttpContext();
+
+        // Act
+        await _sut.TryHandleAsync(httpContext, new MonthlyEstimateLimitReachedException(), CancellationToken.None);
+
+        // Assert
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status429TooManyRequests);
+        var body = await ReadResponseBodyAsync(httpContext);
+        body.ErrorCode.Should().Be(MealEstimateErrorCode.MonthlyLimitReached);
+    }
+
+    [Fact]
     public async Task TryHandleAsync_WritesUnprocessableEntity_WhenNoFoodIsRecognized()
     {
         // Arrange

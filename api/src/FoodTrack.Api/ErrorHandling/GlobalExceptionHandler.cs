@@ -42,6 +42,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
     {
         ArgumentException argumentException => (StatusCodes.Status400BadRequest, ValidationErrorCode.InvalidRequest, argumentException.Message),
         MealEstimateAccessDeniedException accessDeniedException => (StatusCodes.Status403Forbidden, MealEstimateErrorCode.AccessDenied, accessDeniedException.Message),
+        MonthlyEstimateLimitReachedException limitReachedException => (StatusCodes.Status429TooManyRequests, MealEstimateErrorCode.MonthlyLimitReached, limitReachedException.Message),
         NoFoodRecognizedException noFoodRecognizedException => (StatusCodes.Status422UnprocessableEntity, MealEstimateErrorCode.NoFoodRecognized, noFoodRecognizedException.Message),
         MealEstimatorUnavailableException => (StatusCodes.Status502BadGateway, MealEstimateErrorCode.EstimateUnavailable, EstimateUnavailableMessage),
         _ => (StatusCodes.Status500InternalServerError, GeneralErrorCode.UnexpectedError, UnexpectedErrorMessage),

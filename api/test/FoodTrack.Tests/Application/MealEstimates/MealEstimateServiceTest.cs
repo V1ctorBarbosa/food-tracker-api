@@ -15,6 +15,7 @@ public sealed class MealEstimateServiceTest
     private readonly IMealEstimator _mealEstimator = Substitute.For<IMealEstimator>();
     private readonly IMealPhotoStorage _mealPhotoStorage = Substitute.For<IMealPhotoStorage>();
     private readonly IMealEstimateAccessPolicy _accessPolicy = Substitute.For<IMealEstimateAccessPolicy>();
+    private readonly IMealEstimateQuota _quota = Substitute.For<IMealEstimateQuota>();
     private readonly MealEstimateService _sut;
     private readonly UserId _userId = new("firebase-uid-123");
 
@@ -24,7 +25,8 @@ public sealed class MealEstimateServiceTest
         _mealPhotoStorage.GetStateAsync(_userId, Arg.Any<CaptureId>(), Arg.Any<CancellationToken>()).Returns(StoredPhotoState.Pending);
         _mealPhotoStorage.GetPendingPhotoReadUrlAsync(_userId, Arg.Any<CaptureId>(), Arg.Any<CancellationToken>()).Returns(PendingPhotoUrl);
         _mealEstimator.EstimateAsync(Arg.Any<MealEstimateInput>(), Arg.Any<CancellationToken>()).Returns(new RecognizedMeal([GrilledChicken, WhiteRice]));
-        _sut = new MealEstimateService(_mealEstimator, _mealPhotoStorage, _accessPolicy);
+        _quota.TryConsumeAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(true);
+        _sut = new MealEstimateService(_mealEstimator, _mealPhotoStorage, _accessPolicy, _quota);
     }
 
     [Fact]
@@ -182,6 +184,55 @@ public sealed class MealEstimateServiceTest
         chicken.EstimatedFood.Name.Should().Be("Peito de frango grelhado");
         chicken.EstimatedFood.CaptureId.Should().Be(captureId.Value);
         chicken.EstimatedFood.CaloriesPerBaseUnit.Should().Be(160);
+    }
+
+    [Fact]
+    public async Task EstimateAsync_Throws_WithoutCallingTheEstimator_WhenTheMonthlyLimitIsReached()
+    {
+        // Arrange
+        _quota.TryConsumeAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var act = () => _sut.EstimateAsync(_userId, new EstimateMealRequest(CaptureId.NewId().Value, null));
+
+        // Assert
+        await act.Should().ThrowAsync<MonthlyEstimateLimitReachedException>();
+        await _mealEstimator.DidNotReceiveWithAnyArgs().EstimateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task EstimateAsync_CountsOneEstimate_ForEachModelCall()
+    {
+        // Act
+        await _sut.EstimateAsync(_userId, new EstimateMealRequest(null, "200 g de arroz integral"));
+
+        // Assert
+        await _quota.Received(1).TryConsumeAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task EstimateAsync_DoesNotCount_ARequestRejectedBeforeTheModelCall()
+    {
+        // Act
+        var act = () => _sut.EstimateAsync(_userId, new EstimateMealRequest(null, "almoço"));
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _quota.DidNotReceiveWithAnyArgs().TryConsumeAsync(default, default);
+    }
+
+    [Fact]
+    public async Task EstimateAsync_DoesNotCount_WhenTheUserMayNotEstimate()
+    {
+        // Arrange
+        _accessPolicy.CanEstimate(_userId).Returns(false);
+
+        // Act
+        var act = () => _sut.EstimateAsync(_userId, new EstimateMealRequest(null, "200 g de arroz integral"));
+
+        // Assert
+        await act.Should().ThrowAsync<MealEstimateAccessDeniedException>();
+        await _quota.DidNotReceiveWithAnyArgs().TryConsumeAsync(default, default);
     }
 
     [Fact]

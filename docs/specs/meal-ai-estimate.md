@@ -116,7 +116,8 @@ The user wants to describe a meal the way they would to a person: take a photo o
 - The API reads the allowlist of user ids from configuration (SSM). The upload-slot and estimate endpoints return `403` for anyone else.
 - The profile response gains `canEstimateMeals` so the app knows whether to show Foto/Descrever.
 - The estimate endpoints get their own per-user rate limit on top of the global one: **20 requests per hour**.
-- A monthly spend limit is set by hand in the Anthropic console. That is the hard cap; the allowlist and rate limit only keep usage reasonable.
+- A **monthly cap of 300 estimates**, counted across every user per calendar month in UTC, kept in Firestore (`mealEstimateUsage/{yyyy-MM}`) so every function instance shares it. An estimate is counted right before the model call, after every free check; one that then fails still counts. Past the cap the API answers `429` (`MonthlyEstimateLimitReached`) until the next month. The cap is configurable (`MealEstimates:MonthlyEstimateLimit`). At about US$ 0.001 per estimate, 300 a month stays well under the owner's R$ 10 budget.
+- A monthly spend limit is set by hand in the Anthropic console. That is the hard cap; the allowlist, the rate limit and the monthly cap keep usage well below it.
 
 ## 4. Out of scope
 

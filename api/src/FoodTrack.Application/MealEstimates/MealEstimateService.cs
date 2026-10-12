@@ -13,9 +13,15 @@ public sealed class MealEstimateService
     private readonly IMealEstimator _mealEstimator;
     private readonly IMealPhotoStorage _mealPhotoStorage;
     private readonly IMealEstimateAccessPolicy _accessPolicy;
+    private readonly IMealEstimateQuota _quota;
 
-    public MealEstimateService(IMealEstimator mealEstimator, IMealPhotoStorage mealPhotoStorage, IMealEstimateAccessPolicy accessPolicy)
+    public MealEstimateService(
+        IMealEstimator mealEstimator,
+        IMealPhotoStorage mealPhotoStorage,
+        IMealEstimateAccessPolicy accessPolicy,
+        IMealEstimateQuota quota)
     {
+        _quota = quota;
         _mealEstimator = mealEstimator;
         _mealPhotoStorage = mealPhotoStorage;
         _accessPolicy = accessPolicy;
@@ -34,6 +40,7 @@ public sealed class MealEstimateService
 
     /// <exception cref="MealEstimateAccessDeniedException">The user may not use AI estimates.</exception>
     /// <exception cref="ArgumentException">The request has no usable photo and no long enough description.</exception>
+    /// <exception cref="MonthlyEstimateLimitReachedException">This month's cap of estimates is reached.</exception>
     /// <exception cref="NoFoodRecognizedException">The estimator found no food.</exception>
     /// <exception cref="MealEstimatorUnavailableException">The estimator failed or gave no usable food.</exception>
     public async Task<MealEstimateDto> EstimateAsync(UserId userId, EstimateMealRequest request, CancellationToken cancellationToken = default)
@@ -47,6 +54,7 @@ public sealed class MealEstimateService
             photoUrl = await GetUploadedPhotoUrlAsync(userId, capture.Id, cancellationToken);
         }
 
+        await ConsumeQuotaAsync(cancellationToken);
         var recognizedMeal = await _mealEstimator.EstimateAsync(new MealEstimateInput(photoUrl, capture.Description), cancellationToken);
         var items = ToItems(recognizedMeal, capture.Id);
 
@@ -55,6 +63,19 @@ public sealed class MealEstimateService
             capture.HasPhoto,
             capture.Description?.Value,
             items.Select(ToDto).ToList());
+    }
+
+    /// <summary>
+    /// Counted right before the paid call, after every check that can reject the request for free,
+    /// so an invalid request never uses up the month's cap. A model call that then fails still
+    /// counts, because it may still be billed.
+    /// </summary>
+    private async Task ConsumeQuotaAsync(CancellationToken cancellationToken)
+    {
+        if (!await _quota.TryConsumeAsync(DateTimeOffset.UtcNow, cancellationToken))
+        {
+            throw new MonthlyEstimateLimitReachedException();
+        }
     }
 
     private void EnsureAccess(UserId userId)
