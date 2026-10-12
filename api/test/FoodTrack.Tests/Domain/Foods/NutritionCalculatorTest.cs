@@ -103,4 +103,43 @@ public sealed class NutritionCalculatorTest
         result.Calories.Value.Should().Be(147);
         result.Carbs.Value.Should().BeApproximately(36.75, 0.001);
     }
+
+    [Fact]
+    public void Calculate_ScalesNutritionPerBaseUnit_WithoutAFood()
+    {
+        // Arrange
+        var nutritionPer100Grams = new NutritionAmount(new Kilocalories(130), new Grams(2.7), new Grams(28), new Grams(0.3));
+
+        // Act
+        var result = NutritionCalculator.Calculate(
+            "Arroz branco cozido",
+            new BaseUnit(100, MeasurementUnit.Gram),
+            nutritionPer100Grams,
+            0.15,
+            MeasurementUnit.Kilogram);
+
+        // Assert
+        result.Calories.Value.Should().Be(195);
+        result.Protein.Value.Should().BeApproximately(4.05, 0.0001);
+        result.Carbs.Value.Should().BeApproximately(42, 0.0001);
+        result.Fat.Value.Should().BeApproximately(0.45, 0.0001);
+    }
+
+    [Fact]
+    public void Calculate_NamesWhatIsMeasured_WhenTheUnitMeasuresSomethingElseWithoutAFood()
+    {
+        // Arrange
+        var nutritionPer100Milliliters = new NutritionAmount(new Kilocalories(45), new Grams(0.7), new Grams(10.4), new Grams(0.2));
+
+        // Act
+        var act = () => NutritionCalculator.Calculate(
+            "Suco de laranja",
+            new BaseUnit(100, MeasurementUnit.Milliliter),
+            nutritionPer100Milliliters,
+            300,
+            MeasurementUnit.Gram);
+
+        // Assert
+        act.Should().Throw<ArgumentException>().WithMessage("*Suco de laranja*");
+    }
 }

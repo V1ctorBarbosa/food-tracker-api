@@ -70,7 +70,10 @@ This needs real AWS credentials on your machine (e.g. `aws configure`) — it's 
 time this project needs your own AWS credentials directly; everything after this uses the IAM
 user it creates, whose permissions are scoped to just this one Lambda function.
 
-Note the outputs: `github_actions_access_key_id`, `lambda_execution_role_arn`, and
+Bootstrap also creates the private S3 bucket for AI meal estimate photos (`meal-photos.tf`) and
+gives the function's role access to it.
+
+Note the outputs: `github_actions_access_key_id`, `lambda_execution_role_arn`, `meal_photos_bucket_name`, and
 `github_actions_secret_access_key` (hidden by default since it's sensitive -- run
 `terraform output -raw github_actions_secret_access_key` to reveal it. It's only ever shown once;
 if you lose it, `terraform taint aws_iam_access_key.github_actions_deploy` and re-apply to
@@ -87,6 +90,19 @@ aws ssm put-parameter --region us-east-2 --name /food-track/api/Firebase/Credent
 
 To rotate the key later, run the same command with `--overwrite` and a new key file; the function
 picks it up on its next cold start.
+
+AI meal estimates need two more parameters: the Anthropic API key (billed to the Anthropic account
+that owns it, separately from any Claude subscription) and the comma-separated Firebase user ids
+allowed to use the feature. Anyone not on the list never sees the photo and description options.
+
+```bash
+aws ssm put-parameter --region us-east-2 --name /food-track/api/Anthropic/ApiKey --type SecureString --value "<anthropic api key>"
+aws ssm put-parameter --region us-east-2 --name /food-track/api/MealEstimates/AllowedUserIds --type String --value "<firebase uid>"
+```
+
+Set a monthly spend limit on the Anthropic console as well: it is the hard cap on what estimates
+can cost, while the allowlist and the per-user rate limit (20 estimates an hour) only keep usage
+reasonable.
 
 ### 6. Set the Terraform Cloud execution mode to Local
 
@@ -105,6 +121,7 @@ On `V1ctorBarbosa/food-tracker-api` → *Settings → Secrets and variables → 
 | `AWS_SECRET_ACCESS_KEY` | the `github_actions_secret_access_key` output from step 4 |
 | `TF_API_TOKEN` | the same Terraform Cloud token from step 1 |
 | `LAMBDA_EXECUTION_ROLE_ARN` | the `lambda_execution_role_arn` output from step 4 |
+| `MEAL_PHOTOS_BUCKET_NAME` | the `meal_photos_bucket_name` output from step 4 |
 
 (`firebase_project_id`, `lambda_function_name` and `api_parameter_store_path` already default
 correctly in `variables.tf`.)

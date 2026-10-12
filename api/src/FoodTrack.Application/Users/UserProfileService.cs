@@ -1,3 +1,4 @@
+using FoodTrack.Application.MealEstimates;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Users;
 
@@ -6,10 +7,12 @@ namespace FoodTrack.Application.Users;
 public sealed class UserProfileService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IMealEstimateAccessPolicy _mealEstimateAccessPolicy;
 
-    public UserProfileService(IUserRepository userRepository)
+    public UserProfileService(IUserRepository userRepository, IMealEstimateAccessPolicy mealEstimateAccessPolicy)
     {
         _userRepository = userRepository;
+        _mealEstimateAccessPolicy = mealEstimateAccessPolicy;
     }
 
     public async Task<UserProfileDto?> GetProfileAsync(UserId userId, CancellationToken cancellationToken = default)
@@ -77,7 +80,7 @@ public sealed class UserProfileService
         return ToDto(user);
     }
 
-    private static UserProfileDto ToDto(User user) => new(
+    private UserProfileDto ToDto(User user) => new(
         user.Id.Value,
         user.Name,
         user.Age.Value,
@@ -90,5 +93,6 @@ public sealed class UserProfileService
         user.DailyWaterTarget?.Value,
         user.DailyProteinTarget?.Value,
         user.DailyCarbsTarget?.Value,
-        user.DailyFatTarget?.Value);
+        user.DailyFatTarget?.Value,
+        _mealEstimateAccessPolicy.CanEstimate(user.Id));
 }

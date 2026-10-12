@@ -1,5 +1,6 @@
 using FluentAssertions;
 using FoodTrack.Application.Foods;
+using FoodTrack.Application.MealEstimates;
 using FoodTrack.Application.Meals;
 using FoodTrack.Application.Users;
 using FoodTrack.Application.WaterEntries;
@@ -18,6 +19,7 @@ public sealed class AccountDeletionServiceTest
     private readonly IFoodRepository _foodRepository = Substitute.For<IFoodRepository>();
     private readonly IUserRepository _userRepository = Substitute.For<IUserRepository>();
     private readonly IIdentityAccountRemover _identityAccountRemover = Substitute.For<IIdentityAccountRemover>();
+    private readonly IMealPhotoStorage _mealPhotoStorage = Substitute.For<IMealPhotoStorage>();
     private readonly AccountDeletionService _sut;
     private readonly UserId _userId = new("firebase-uid-123");
 
@@ -29,7 +31,23 @@ public sealed class AccountDeletionServiceTest
             _weightEntryRepository,
             _foodRepository,
             _userRepository,
-            _identityAccountRemover);
+            _identityAccountRemover,
+            _mealPhotoStorage);
+    }
+
+    [Fact]
+    public async Task DeleteAccountAsync_DeletesTheMealPhotos_BeforeTheMeals()
+    {
+        // Act
+        await _sut.DeleteAccountAsync(_userId);
+
+        // Assert
+        Received.InOrder(() =>
+        {
+            _mealPhotoStorage.DeleteAllAsync(_userId, Arg.Any<CancellationToken>());
+            _mealRepository.DeleteAllByUserAsync(_userId, Arg.Any<CancellationToken>());
+            _identityAccountRemover.RemoveAsync(_userId, Arg.Any<CancellationToken>());
+        });
     }
 
     [Fact]

@@ -11,11 +11,13 @@ public sealed class MealService
 {
     private readonly IMealRepository _mealRepository;
     private readonly IFoodRepository _foodRepository;
+    private readonly MealPhotoLifecycle _mealPhotoLifecycle;
 
-    public MealService(IMealRepository mealRepository, IFoodRepository foodRepository)
+    public MealService(IMealRepository mealRepository, IFoodRepository foodRepository, MealPhotoLifecycle mealPhotoLifecycle)
     {
         _mealRepository = mealRepository;
         _foodRepository = foodRepository;
+        _mealPhotoLifecycle = mealPhotoLifecycle;
     }
 
     public async Task<IReadOnlyList<MealSummaryDto>> ListAsync(
@@ -36,7 +38,7 @@ public sealed class MealService
             return null;
         }
 
-        return ToDto(meal);
+        return await ToDtoAsync(meal, cancellationToken);
     }
 
     public async Task<MealDto> CreateAsync(UserId userId, CreateMealRequest request, CancellationToken cancellationToken = default)
@@ -44,10 +46,14 @@ public sealed class MealService
         var items = await ResolveItemsAsync(userId, request.Items, cancellationToken);
         var mealType = Enum.Parse<MealType>(request.MealType, ignoreCase: true);
         var loggedAt = LoggedAtPolicy.Resolve(request.LoggedAt, DateTimeOffset.UtcNow);
-        var meal = Meal.Create(MealId.NewId(), userId, loggedAt, mealType, items);
+        var captures = MealRequestMapper.ToCaptures(request.Captures ?? []);
+        var meal = Meal.Create(MealId.NewId(), userId, loggedAt, mealType, items, captures);
 
+        await _mealPhotoLifecycle.EnsureNewPhotosAreUploadedAsync(userId, [], meal.Captures, cancellationToken);
         await _mealRepository.AddAsync(meal, cancellationToken);
-        return ToDto(meal);
+        await _mealPhotoLifecycle.SyncAfterSaveAsync(userId, [], meal.Captures, cancellationToken);
+
+        return await ToDtoAsync(meal, cancellationToken);
     }
 
     /// <returns>The replaced meal, or null when it does not exist or does not belong to <paramref name="userId"/>.</returns>
@@ -65,10 +71,14 @@ public sealed class MealService
 
         var items = await ResolveItemsAsync(userId, request.Items, cancellationToken);
         var mealType = Enum.Parse<MealType>(request.MealType, ignoreCase: true);
-        var meal = Meal.Create(id, userId, existing.LoggedAt, mealType, items);
+        var captures = ResolveUpdatedCaptures(existing, request.Captures);
+        var meal = Meal.Create(id, userId, existing.LoggedAt, mealType, items, captures);
 
+        await _mealPhotoLifecycle.EnsureNewPhotosAreUploadedAsync(userId, existing.Captures, meal.Captures, cancellationToken);
         await _mealRepository.UpdateAsync(meal, cancellationToken);
-        return ToDto(meal);
+        await _mealPhotoLifecycle.SyncAfterSaveAsync(userId, existing.Captures, meal.Captures, cancellationToken);
+
+        return await ToDtoAsync(meal, cancellationToken);
     }
 
     /// <returns>True when the meal existed and belonged to <paramref name="userId"/> and was deleted.</returns>
@@ -81,7 +91,14 @@ public sealed class MealService
         }
 
         await _mealRepository.DeleteAsync(id, cancellationToken);
+        await _mealPhotoLifecycle.DeletePhotosOfAsync(existing, cancellationToken);
         return true;
+    }
+
+    private async Task<MealDto> ToDtoAsync(Meal meal, CancellationToken cancellationToken)
+    {
+        var photoReadUrls = await _mealPhotoLifecycle.GetReadUrlsAsync(meal, cancellationToken);
+        return MealDtoMapper.ToDto(meal, photoReadUrls);
     }
 
     private async Task<IReadOnlyList<MealItem>> ResolveItemsAsync(
@@ -94,11 +111,39 @@ public sealed class MealService
         var items = new List<MealItem>(itemRequests.Count);
         foreach (var itemRequest in itemRequests)
         {
-            var food = await FindFoodVisibleToAsync(userId, itemRequest.FoodId, cancellationToken);
-            items.Add(ResolveItem(food, itemRequest));
+            items.Add(await ResolveItemAsync(userId, itemRequest, cancellationToken));
         }
 
         return items;
+    }
+
+    private async Task<MealItem> ResolveItemAsync(UserId userId, MealItemRequest itemRequest, CancellationToken cancellationToken)
+    {
+        var hasFoodId = !string.IsNullOrWhiteSpace(itemRequest.FoodId);
+
+        if (itemRequest.EstimatedFood is { } estimatedFoodRequest)
+        {
+            EnsureFoodIdIsAbsent(hasFoodId);
+            return MealRequestMapper.ToEstimatedItem(estimatedFoodRequest, itemRequest.Quantity, itemRequest.Unit);
+        }
+
+        if (!hasFoodId || itemRequest.FoodId is not { } foodId)
+        {
+            throw new ArgumentException("Each meal item needs a food id or an estimated food.", nameof(itemRequest));
+        }
+
+        var food = await FindFoodVisibleToAsync(userId, foodId, cancellationToken);
+        var unit = MealRequestMapper.ParseUnit(itemRequest.Unit);
+
+        return MealItem.FromCatalogFood(MealItemId.NewId(), food, itemRequest.Quantity, unit);
+    }
+
+    private static void EnsureFoodIdIsAbsent(bool hasFoodId)
+    {
+        if (hasFoodId)
+        {
+            throw new ArgumentException("A meal item cannot have both a food id and an estimated food.", nameof(hasFoodId));
+        }
     }
 
     /// <summary>
@@ -122,54 +167,15 @@ public sealed class MealService
         return food;
     }
 
-    private static MealItem ResolveItem(Food food, MealItemRequest itemRequest)
+    private static IReadOnlyList<MealCapture> ResolveUpdatedCaptures(Meal existing, IReadOnlyList<MealCaptureRequest>? captureRequests)
     {
-        if (string.IsNullOrWhiteSpace(itemRequest.Unit))
+        if (captureRequests is null)
         {
-            throw new ArgumentException($"A unit is required for food '{itemRequest.FoodId}'.", nameof(itemRequest));
+            return existing.Captures;
         }
 
-        var unit = Enum.Parse<MeasurementUnit>(itemRequest.Unit, ignoreCase: true);
-        var quantity = itemRequest.Quantity;
-        var nutrition = NutritionCalculator.Calculate(food, quantity, unit);
-
-        return MealItem.Create(
-            MealItemId.NewId(),
-            food.Id,
-            quantity,
-            unit,
-            nutrition.Calories,
-            nutrition.Protein,
-            nutrition.Carbs,
-            nutrition.Fat);
+        return MealRequestMapper.ToCaptures(captureRequests);
     }
 
-    private static MealDto ToDto(Meal meal) => new(
-        meal.Id.Value,
-        meal.LoggedAt,
-        meal.MealType.ToString(),
-        meal.TotalCalories.Value,
-        meal.TotalProtein.Value,
-        meal.TotalCarbs.Value,
-        meal.TotalFat.Value,
-        meal.Items.Select(ToDto).ToList());
-
-    private static MealSummaryDto ToDto(MealSummary summary) => new(
-        summary.Id.Value,
-        summary.LoggedAt,
-        summary.MealType.ToString(),
-        summary.TotalCalories.Value,
-        summary.TotalProtein.Value,
-        summary.TotalCarbs.Value,
-        summary.TotalFat.Value);
-
-    private static MealItemDto ToDto(MealItem item) => new(
-        item.Id.Value,
-        item.FoodId.Value,
-        item.Quantity,
-        item.Unit.ToString(),
-        item.Calories.Value,
-        item.Protein.Value,
-        item.Carbs.Value,
-        item.Fat.Value);
+    private static MealSummaryDto ToDto(MealSummary summary) => MealDtoMapper.ToDto(summary);
 }

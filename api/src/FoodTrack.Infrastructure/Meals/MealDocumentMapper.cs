@@ -16,10 +16,12 @@ internal static class MealDocumentMapper
         userId,
         document.LoggedAt,
         Enum.Parse<MealType>(document.MealType),
-        items);
+        items,
+        ToCaptures(document.Captures));
 
     public static MealDocument ToDocument(Meal meal) => new()
     {
+        Captures = meal.Captures.Select(MealCaptureDocumentMapper.ToDocument).ToList(),
         UserId = meal.UserId.Value,
         LoggedAt = meal.LoggedAt,
         MealType = meal.MealType.ToString(),
@@ -51,5 +53,15 @@ internal static class MealDocumentMapper
             new Grams(protein),
             new Grams(carbs),
             new Grams(fat));
+    }
+
+    private static IReadOnlyList<MealCapture> ToCaptures(List<MealCaptureDocument>? captureDocuments)
+    {
+        if (captureDocuments is null)
+        {
+            return [];
+        }
+
+        return captureDocuments.Select(MealCaptureDocumentMapper.ToDomain).ToList();
     }
 }

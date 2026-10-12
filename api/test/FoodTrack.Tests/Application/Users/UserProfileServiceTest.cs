@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FoodTrack.Application.MealEstimates;
 using FoodTrack.Application.Users;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Users;
@@ -9,11 +10,41 @@ namespace FoodTrack.Tests.Application.Users;
 public sealed class UserProfileServiceTest
 {
     private readonly IUserRepository _userRepository = Substitute.For<IUserRepository>();
+    private readonly IMealEstimateAccessPolicy _mealEstimateAccessPolicy = Substitute.For<IMealEstimateAccessPolicy>();
     private readonly UserProfileService _sut;
 
     public UserProfileServiceTest()
     {
-        _sut = new UserProfileService(_userRepository);
+        _sut = new UserProfileService(_userRepository, _mealEstimateAccessPolicy);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task UpsertProfileAsync_ReportsWhetherTheUserCanEstimateMeals(bool canEstimate)
+    {
+        // Arrange
+        var userId = new UserId("firebase-uid-123");
+        var request = new UpsertUserProfileRequest(
+            Name: "Victor",
+            Age: 30,
+            HeightCentimeters: 180,
+            Gender: "Male",
+            ActivityLevel: "Moderate",
+            TargetWeightKilograms: null,
+            DesiredCalorieDeficit: 500,
+            DailyCalorieTarget: 2000,
+            DailyWaterTargetMilliliters: null,
+            DailyProteinTargetGrams: null,
+            DailyCarbsTargetGrams: null,
+            DailyFatTargetGrams: null);
+        _mealEstimateAccessPolicy.CanEstimate(userId).Returns(canEstimate);
+
+        // Act
+        var result = await _sut.UpsertProfileAsync(userId, request);
+
+        // Assert
+        result.CanEstimateMeals.Should().Be(canEstimate);
     }
 
     [Fact]

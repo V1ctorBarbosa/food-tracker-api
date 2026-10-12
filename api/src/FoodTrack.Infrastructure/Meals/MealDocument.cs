@@ -27,4 +27,8 @@ internal sealed class MealDocument
 
     [FirestoreProperty]
     public double? TotalFat { get; set; }
+
+    /// <summary>Null on meals saved before captures existed, read as none.</summary>
+    [FirestoreProperty]
+    public List<MealCaptureDocument>? Captures { get; set; }
 }

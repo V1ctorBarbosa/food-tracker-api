@@ -13,16 +13,25 @@ namespace FoodTrack.Api.RateLimiting;
 /// </summary>
 public static class PerUserRateLimiting
 {
+    /// <summary>
+    /// The policy for AI meal estimates, applied on top of the global limit. Every estimate is a
+    /// paid model call, so its cap is far tighter than the one for ordinary requests.
+    /// </summary>
+    public const string MealEstimatesPolicyName = "MealEstimates";
+
     private const int PermitLimitPerWindow = 120;
+    private const int MealEstimatePermitLimitPerWindow = 20;
     private const string RejectionMessage = "Too many requests. Please wait a moment and try again.";
 
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan MealEstimateWindow = TimeSpan.FromHours(1);
 
     public static IServiceCollection AddPerUserRateLimiting(this IServiceCollection services)
     {
         return services.AddRateLimiter(options =>
         {
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext => PartitionFor(httpContext.User));
+            options.AddPolicy(MealEstimatesPolicyName, httpContext => MealEstimatePartitionFor(httpContext.User));
             options.OnRejected = WriteRejectionAsync;
         });
     }
@@ -48,6 +57,22 @@ public static class PerUserRateLimiting
         {
             PermitLimit = PermitLimitPerWindow,
             Window = Window,
+            QueueLimit = 0,
+        });
+    }
+
+    private static RateLimitPartition<string> MealEstimatePartitionFor(ClaimsPrincipal user)
+    {
+        var partitionKey = PartitionKeyFor(user);
+        if (partitionKey is null)
+        {
+            return RateLimitPartition.GetNoLimiter(string.Empty);
+        }
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = MealEstimatePermitLimitPerWindow,
+            Window = MealEstimateWindow,
             QueueLimit = 0,
         });
     }
