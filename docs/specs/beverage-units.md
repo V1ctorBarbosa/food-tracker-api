@@ -35,7 +35,7 @@ It also hid a data bug: for drinks, Open Food Facts reports nutrients per 100 ml
 ### R1. Open Food Facts classification
 
 1. Read the unit from the free-text `quantity` (`"350ml"`, `"3 l"`, `"300 mL"`, `"1L"`, `"6 x 350 ml"`, `"500 g"`): the first unit symbol right after a number decides. `ml`, `cl`, `l` → `Milliliter`; `g`, `kg`, `mg` → `Gram`. A word that only starts with a unit letter ("1 lata") is not a unit.
-2. No unit in `quantity`: `categories_tags` contains `en:beverages` → `Milliliter`.
+2. No unit in `quantity`: `categories_tags` contains `en:beverage-preparations` (coffee capsules, drink powders) → `Gram`; otherwise `en:beverages` → `Milliliter`.
 3. Otherwise → `Gram`.
 
 The nutrient values are used as they come. The search endpoint (search-a-licious) does not return `nutrition_data_per` or `product_quantity_unit`, but does return `quantity` and `categories_tags` (checked live on 2026-10-07).
