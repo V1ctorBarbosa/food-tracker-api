@@ -1,6 +1,7 @@
 using FluentAssertions;
 using FoodTrack.Application.Common;
 using FoodTrack.Application.Foods;
+using FoodTrack.Application.MealEstimates;
 using FoodTrack.Application.Meals;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Foods;
@@ -13,13 +14,18 @@ namespace FoodTrack.Tests.Application.Meals;
 public sealed class MealServiceTest
 {
     private readonly IMealRepository _mealRepository = Substitute.For<IMealRepository>();
+    private static readonly Uri PhotoReadUrl = new("https://photos.example.test/attached/photo.jpg");
+
     private readonly IFoodRepository _foodRepository = Substitute.For<IFoodRepository>();
+    private readonly IMealPhotoStorage _mealPhotoStorage = Substitute.For<IMealPhotoStorage>();
     private readonly MealService _sut;
     private readonly UserId _userId = new("firebase-uid-123");
 
     public MealServiceTest()
     {
-        _sut = new MealService(_mealRepository, _foodRepository);
+        _mealPhotoStorage.GetStateAsync(Arg.Any<UserId>(), Arg.Any<CaptureId>(), Arg.Any<CancellationToken>()).Returns(StoredPhotoState.Pending);
+        _mealPhotoStorage.GetAttachedPhotoReadUrlAsync(Arg.Any<UserId>(), Arg.Any<CaptureId>(), Arg.Any<CancellationToken>()).Returns(PhotoReadUrl);
+        _sut = new MealService(_mealRepository, _foodRepository, new MealPhotoLifecycle(_mealPhotoStorage));
     }
 
     [Fact]
@@ -408,10 +414,116 @@ public sealed class MealServiceTest
         result.TotalCalories.Should().Be(260 + 240);
         result.Items.Should().ContainSingle(item => item.FoodId == rice.Id.Value);
         result.Items.Should().ContainSingle(item => item.EstimatedFood != null && item.EstimatedFood.CaptureId == captureId.Value);
-        result.Captures.Should().Equal(new MealCaptureDto(captureId.Value, true, "o frango é grelhado"));
+        result.Captures.Should().Equal(new MealCaptureDto(captureId.Value, true, "o frango é grelhado", PhotoReadUrl.ToString()));
         await _mealRepository.Received(1).AddAsync(
             Arg.Is<Meal>(meal => meal.Captures.Count == 1 && meal.Items.Count == 2),
             Arg.Any<CancellationToken>());
+        await _mealPhotoStorage.Received(1).MarkAttachedAsync(_userId, captureId, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(StoredPhotoState.Missing)]
+    [InlineData(StoredPhotoState.TooLarge)]
+    public async Task CreateAsync_Throws_AndSavesNothing_WhenACapturesPhotoIsNotUsable(StoredPhotoState photoState)
+    {
+        // Arrange
+        var captureId = CaptureId.NewId();
+        _mealPhotoStorage.GetStateAsync(_userId, captureId, Arg.Any<CancellationToken>()).Returns(photoState);
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(null, 150, nameof(MeasurementUnit.Gram), CreateChickenRequest(captureId))],
+            Captures: [new MealCaptureRequest(captureId.Value, true, null)]);
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
+        await _mealPhotoStorage.DidNotReceive().MarkAttachedAsync(Arg.Any<UserId>(), Arg.Any<CaptureId>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_DoesNotTouchStorage_ForACaptureWithoutAPhoto()
+    {
+        // Arrange
+        var captureId = CaptureId.NewId();
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(null, 150, nameof(MeasurementUnit.Gram), CreateChickenRequest(captureId))],
+            Captures: [new MealCaptureRequest(captureId.Value, false, "peito de frango grelhado, 150 g")]);
+
+        // Act
+        var result = await _sut.CreateAsync(_userId, request);
+
+        // Assert
+        result.Captures.Single().PhotoUrl.Should().BeNull();
+        await _mealPhotoStorage.DidNotReceiveWithAnyArgs().GetStateAsync(default, default);
+        await _mealPhotoStorage.DidNotReceiveWithAnyArgs().MarkAttachedAsync(default, default);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_DeletesThePhotoOfACaptureThatLeavesTheMeal()
+    {
+        // Arrange
+        var removedCapture = MealCapture.Create(CaptureId.NewId(), hasPhoto: true, description: null);
+        var existingMeal = Meal.Create(MealId.NewId(), _userId, DateTimeOffset.UtcNow, MealType.Lunch, [CreateItem(100, 1, 1, 1)], [removedCapture]);
+        _mealRepository.GetByIdAsync(existingMeal.Id, _userId, Arg.Any<CancellationToken>()).Returns(existingMeal);
+        var request = new UpdateMealRequest(nameof(MealType.Lunch), [CreateCatalogItemRequest()], []);
+
+        // Act
+        await _sut.UpdateAsync(_userId, existingMeal.Id, request);
+
+        // Assert
+        await _mealPhotoStorage.Received(1).DeleteAsync(_userId, removedCapture.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_DoesNotReattachOrRecheck_ACaptureTheMealAlreadyHad()
+    {
+        // Arrange
+        var capture = MealCapture.Create(CaptureId.NewId(), hasPhoto: true, description: null);
+        var existingMeal = Meal.Create(MealId.NewId(), _userId, DateTimeOffset.UtcNow, MealType.Lunch, [CreateItem(100, 1, 1, 1)], [capture]);
+        _mealRepository.GetByIdAsync(existingMeal.Id, _userId, Arg.Any<CancellationToken>()).Returns(existingMeal);
+        var request = new UpdateMealRequest(nameof(MealType.Lunch), [CreateCatalogItemRequest()]);
+
+        // Act
+        await _sut.UpdateAsync(_userId, existingMeal.Id, request);
+
+        // Assert
+        await _mealPhotoStorage.DidNotReceiveWithAnyArgs().GetStateAsync(default, default);
+        await _mealPhotoStorage.DidNotReceiveWithAnyArgs().MarkAttachedAsync(default, default);
+        await _mealPhotoStorage.DidNotReceiveWithAnyArgs().DeleteAsync(default, default);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DeletesThePhotosOfTheMealsCaptures()
+    {
+        // Arrange
+        var photoCapture = MealCapture.Create(CaptureId.NewId(), hasPhoto: true, description: null);
+        var descriptionCapture = MealCapture.Create(CaptureId.NewId(), hasPhoto: false, new MealDescription("um copo de suco de laranja"));
+        var existingMeal = Meal.Create(
+            MealId.NewId(),
+            _userId,
+            DateTimeOffset.UtcNow,
+            MealType.Lunch,
+            [CreateItem(100, 1, 1, 1)],
+            [photoCapture, descriptionCapture]);
+        _mealRepository.GetByIdAsync(existingMeal.Id, _userId, Arg.Any<CancellationToken>()).Returns(existingMeal);
+
+        // Act
+        await _sut.DeleteAsync(_userId, existingMeal.Id);
+
+        // Assert
+        await _mealPhotoStorage.Received(1).DeleteAsync(_userId, photoCapture.Id, Arg.Any<CancellationToken>());
+        await _mealPhotoStorage.DidNotReceive().DeleteAsync(_userId, descriptionCapture.Id, Arg.Any<CancellationToken>());
+    }
+
+    private MealItemRequest CreateCatalogItemRequest()
+    {
+        var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
+        _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
+        return new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram));
     }
 
     [Fact]
@@ -529,7 +641,7 @@ public sealed class MealServiceTest
         var result = await _sut.UpdateAsync(_userId, existingMeal.Id, request);
 
         // Assert
-        result!.Captures.Should().Equal(new MealCaptureDto(newCaptureId.Value, false, "peito de frango grelhado, 150 g"));
+        result!.Captures.Should().Equal(new MealCaptureDto(newCaptureId.Value, false, "peito de frango grelhado, 150 g", null));
     }
 
     private static EstimatedFoodRequest CreateChickenRequest(CaptureId captureId) => new(

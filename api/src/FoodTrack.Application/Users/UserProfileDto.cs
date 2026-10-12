@@ -13,4 +13,5 @@ public sealed record UserProfileDto(
     int? DailyWaterTargetMilliliters,
     double? DailyProteinTargetGrams,
     double? DailyCarbsTargetGrams,
-    double? DailyFatTargetGrams);
+    double? DailyFatTargetGrams,
+    bool CanEstimateMeals);

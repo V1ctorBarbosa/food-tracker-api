@@ -7,6 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="Amazon.Extensions.Configuration.SystemsManager" Version="7.1.1" />
+    <PackageReference Include="Anthropic" Version="12.55.0" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.104.3" />
     <PackageReference Include="FirebaseAdmin" Version="3.6.0" />
     <PackageReference Include="Google.Cloud.Firestore" Version="4.4.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />

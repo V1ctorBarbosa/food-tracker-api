@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using FoodTrack.Api.ErrorHandling;
+using FoodTrack.Application.MealEstimates;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -51,6 +52,53 @@ public sealed class GlobalExceptionHandlerTest
         var body = await ReadResponseBodyAsync(httpContext);
         body.ErrorCode.Should().Be(GeneralErrorCode.UnexpectedError);
         body.Message.Should().NotBe(exception.Message);
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_WritesForbidden_WhenTheUserMayNotEstimateMeals()
+    {
+        // Arrange
+        var httpContext = CreateHttpContext();
+
+        // Act
+        await _sut.TryHandleAsync(httpContext, new MealEstimateAccessDeniedException(), CancellationToken.None);
+
+        // Assert
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        var body = await ReadResponseBodyAsync(httpContext);
+        body.ErrorCode.Should().Be(MealEstimateErrorCode.AccessDenied);
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_WritesUnprocessableEntity_WhenNoFoodIsRecognized()
+    {
+        // Arrange
+        var httpContext = CreateHttpContext();
+
+        // Act
+        await _sut.TryHandleAsync(httpContext, new NoFoodRecognizedException(), CancellationToken.None);
+
+        // Assert
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+        var body = await ReadResponseBodyAsync(httpContext);
+        body.ErrorCode.Should().Be(MealEstimateErrorCode.NoFoodRecognized);
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_WritesBadGateway_WithoutTheEstimatorDetails_WhenTheEstimatorIsUnavailable()
+    {
+        // Arrange
+        var httpContext = CreateHttpContext();
+        var exception = new MealEstimatorUnavailableException("The estimator returned an error.", new InvalidOperationException("internal detail"));
+
+        // Act
+        await _sut.TryHandleAsync(httpContext, exception, CancellationToken.None);
+
+        // Assert
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status502BadGateway);
+        var body = await ReadResponseBodyAsync(httpContext);
+        body.ErrorCode.Should().Be(MealEstimateErrorCode.EstimateUnavailable);
+        body.Message.Should().NotContain("internal detail");
     }
 
     private static DefaultHttpContext CreateHttpContext() => new() { Response = { Body = new MemoryStream() } };

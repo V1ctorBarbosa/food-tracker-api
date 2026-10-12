@@ -1,4 +1,5 @@
 using FoodTrack.Application.Foods;
+using FoodTrack.Application.MealEstimates;
 using FoodTrack.Application.Meals;
 using FoodTrack.Application.WaterEntries;
 using FoodTrack.Application.WeightEntries;
@@ -19,6 +20,7 @@ public sealed class AccountDeletionService
     private readonly IFoodRepository _foodRepository;
     private readonly IUserRepository _userRepository;
     private readonly IIdentityAccountRemover _identityAccountRemover;
+    private readonly IMealPhotoStorage _mealPhotoStorage;
 
     public AccountDeletionService(
         IMealRepository mealRepository,
@@ -26,8 +28,10 @@ public sealed class AccountDeletionService
         IWeightEntryRepository weightEntryRepository,
         IFoodRepository foodRepository,
         IUserRepository userRepository,
-        IIdentityAccountRemover identityAccountRemover)
+        IIdentityAccountRemover identityAccountRemover,
+        IMealPhotoStorage mealPhotoStorage)
     {
+        _mealPhotoStorage = mealPhotoStorage;
         _mealRepository = mealRepository;
         _waterEntryRepository = waterEntryRepository;
         _weightEntryRepository = weightEntryRepository;
@@ -42,6 +46,7 @@ public sealed class AccountDeletionService
     /// </summary>
     public async Task DeleteAccountAsync(UserId userId, CancellationToken cancellationToken = default)
     {
+        await _mealPhotoStorage.DeleteAllAsync(userId, cancellationToken);
         await _mealRepository.DeleteAllByUserAsync(userId, cancellationToken);
         await _waterEntryRepository.DeleteAllByUserAsync(userId, cancellationToken);
         await _weightEntryRepository.DeleteAllByUserAsync(userId, cancellationToken);

@@ -1,5 +1,6 @@
 using FoodTrack.Application.Dashboard;
 using FoodTrack.Application.Foods;
+using FoodTrack.Application.MealEstimates;
 using FoodTrack.Application.Meals;
 using FoodTrack.Application.Users;
 using FoodTrack.Application.WaterEntries;
@@ -16,7 +17,9 @@ public static class DependencyInjection
         services.AddScoped<WeightEntryService>();
         services.AddScoped<WaterEntryService>();
         services.AddScoped<FoodService>();
+        services.AddScoped<MealPhotoLifecycle>();
         services.AddScoped<MealService>();
+        services.AddScoped<MealEstimateService>();
         services.AddScoped<DashboardService>();
         services.AddScoped<AccountDeletionService>();
 

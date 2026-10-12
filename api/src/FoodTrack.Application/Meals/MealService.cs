@@ -11,11 +11,13 @@ public sealed class MealService
 {
     private readonly IMealRepository _mealRepository;
     private readonly IFoodRepository _foodRepository;
+    private readonly MealPhotoLifecycle _mealPhotoLifecycle;
 
-    public MealService(IMealRepository mealRepository, IFoodRepository foodRepository)
+    public MealService(IMealRepository mealRepository, IFoodRepository foodRepository, MealPhotoLifecycle mealPhotoLifecycle)
     {
         _mealRepository = mealRepository;
         _foodRepository = foodRepository;
+        _mealPhotoLifecycle = mealPhotoLifecycle;
     }
 
     public async Task<IReadOnlyList<MealSummaryDto>> ListAsync(
@@ -36,7 +38,7 @@ public sealed class MealService
             return null;
         }
 
-        return ToDto(meal);
+        return await ToDtoAsync(meal, cancellationToken);
     }
 
     public async Task<MealDto> CreateAsync(UserId userId, CreateMealRequest request, CancellationToken cancellationToken = default)
@@ -47,8 +49,11 @@ public sealed class MealService
         var captures = MealRequestMapper.ToCaptures(request.Captures ?? []);
         var meal = Meal.Create(MealId.NewId(), userId, loggedAt, mealType, items, captures);
 
+        await _mealPhotoLifecycle.EnsureNewPhotosAreUploadedAsync(userId, [], meal.Captures, cancellationToken);
         await _mealRepository.AddAsync(meal, cancellationToken);
-        return ToDto(meal);
+        await _mealPhotoLifecycle.SyncAfterSaveAsync(userId, [], meal.Captures, cancellationToken);
+
+        return await ToDtoAsync(meal, cancellationToken);
     }
 
     /// <returns>The replaced meal, or null when it does not exist or does not belong to <paramref name="userId"/>.</returns>
@@ -69,8 +74,11 @@ public sealed class MealService
         var captures = ResolveUpdatedCaptures(existing, request.Captures);
         var meal = Meal.Create(id, userId, existing.LoggedAt, mealType, items, captures);
 
+        await _mealPhotoLifecycle.EnsureNewPhotosAreUploadedAsync(userId, existing.Captures, meal.Captures, cancellationToken);
         await _mealRepository.UpdateAsync(meal, cancellationToken);
-        return ToDto(meal);
+        await _mealPhotoLifecycle.SyncAfterSaveAsync(userId, existing.Captures, meal.Captures, cancellationToken);
+
+        return await ToDtoAsync(meal, cancellationToken);
     }
 
     /// <returns>True when the meal existed and belonged to <paramref name="userId"/> and was deleted.</returns>
@@ -83,7 +91,14 @@ public sealed class MealService
         }
 
         await _mealRepository.DeleteAsync(id, cancellationToken);
+        await _mealPhotoLifecycle.DeletePhotosOfAsync(existing, cancellationToken);
         return true;
+    }
+
+    private async Task<MealDto> ToDtoAsync(Meal meal, CancellationToken cancellationToken)
+    {
+        var photoReadUrls = await _mealPhotoLifecycle.GetReadUrlsAsync(meal, cancellationToken);
+        return MealDtoMapper.ToDto(meal, photoReadUrls);
     }
 
     private async Task<IReadOnlyList<MealItem>> ResolveItemsAsync(
@@ -161,8 +176,6 @@ public sealed class MealService
 
         return MealRequestMapper.ToCaptures(captureRequests);
     }
-
-    private static MealDto ToDto(Meal meal) => MealDtoMapper.ToDto(meal);
 
     private static MealSummaryDto ToDto(MealSummary summary) => MealDtoMapper.ToDto(summary);
 }

@@ -4,7 +4,8 @@ namespace FoodTrack.Application.Meals;
 
 public static class MealDtoMapper
 {
-    public static MealDto ToDto(Meal meal) => new(
+    /// <param name="photoReadUrls">The read URL of every capture that has a photo.</param>
+    public static MealDto ToDto(Meal meal, IReadOnlyDictionary<CaptureId, Uri> photoReadUrls) => new(
         meal.Id.Value,
         meal.LoggedAt,
         meal.MealType.ToString(),
@@ -13,7 +14,7 @@ public static class MealDtoMapper
         meal.TotalCarbs.Value,
         meal.TotalFat.Value,
         meal.Items.Select(ToDto).ToList(),
-        meal.Captures.Select(ToDto).ToList());
+        meal.Captures.Select(capture => ToDto(capture, photoReadUrls)).ToList());
 
     public static MealSummaryDto ToDto(MealSummary summary) => new(
         summary.Id.Value,
@@ -53,10 +54,16 @@ public static class MealDtoMapper
             estimatedFood);
     }
 
-    public static MealCaptureDto ToDto(MealCapture capture) => new(
-        capture.Id.Value,
-        capture.HasPhoto,
-        capture.Description?.Value);
+    public static MealCaptureDto ToDto(MealCapture capture, IReadOnlyDictionary<CaptureId, Uri> photoReadUrls)
+    {
+        string? photoUrl = null;
+        if (photoReadUrls.TryGetValue(capture.Id, out var readUrl))
+        {
+            photoUrl = readUrl.ToString();
+        }
+
+        return new MealCaptureDto(capture.Id.Value, capture.HasPhoto, capture.Description?.Value, photoUrl);
+    }
 
     private static EstimatedFoodDto ToDto(EstimatedFoodOrigin estimatedOrigin)
     {

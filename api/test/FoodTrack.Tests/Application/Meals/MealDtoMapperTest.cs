@@ -79,10 +79,25 @@ public sealed class MealDtoMapperTest
             [MealItem.Create(MealItemId.NewId(), FoodId.NewId(), 100, MeasurementUnit.Gram, new Kilocalories(100), new Grams(1), new Grams(1), new Grams(1))],
             [capture]);
 
+        var photoReadUrl = new Uri("https://photos.example.test/attached/photo.jpg");
+
         // Act
-        var dto = MealDtoMapper.ToDto(meal);
+        var dto = MealDtoMapper.ToDto(meal, new Dictionary<CaptureId, Uri> { [capture.Id] = photoReadUrl });
 
         // Assert
-        dto.Captures.Should().Equal(new MealCaptureDto(capture.Id.Value, true, "o frango é empanado"));
+        dto.Captures.Should().Equal(new MealCaptureDto(capture.Id.Value, true, "o frango é empanado", photoReadUrl.ToString()));
+    }
+
+    [Fact]
+    public void ToDto_LeavesThePhotoUrlEmpty_ForACaptureWithoutAPhoto()
+    {
+        // Arrange
+        var capture = MealCapture.Create(CaptureId.NewId(), hasPhoto: false, new MealDescription("um copo de suco de laranja"));
+
+        // Act
+        var dto = MealDtoMapper.ToDto(capture, new Dictionary<CaptureId, Uri>());
+
+        // Assert
+        dto.PhotoUrl.Should().BeNull();
     }
 }
