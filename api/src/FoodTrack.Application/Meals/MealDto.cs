@@ -8,4 +8,5 @@ public sealed record MealDto(
     double TotalProtein,
     double TotalCarbs,
     double TotalFat,
-    IReadOnlyList<MealItemDto> Items);
+    IReadOnlyList<MealItemDto> Items,
+    IReadOnlyList<MealCaptureDto> Captures);

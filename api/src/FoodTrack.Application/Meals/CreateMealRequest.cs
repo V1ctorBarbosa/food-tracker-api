@@ -1,3 +1,8 @@
 namespace FoodTrack.Application.Meals;
 
-public sealed record CreateMealRequest(string MealType, IReadOnlyList<MealItemRequest> Items, DateTimeOffset? LoggedAt = null);
+/// <param name="Captures">The estimates the meal's AI items came from. Omitted means none.</param>
+public sealed record CreateMealRequest(
+    string MealType,
+    IReadOnlyList<MealItemRequest> Items,
+    DateTimeOffset? LoggedAt = null,
+    IReadOnlyList<MealCaptureRequest>? Captures = null);

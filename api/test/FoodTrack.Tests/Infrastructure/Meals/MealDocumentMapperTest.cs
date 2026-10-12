@@ -149,6 +149,48 @@ public sealed class MealDocumentMapperTest
         summary.Should().BeNull();
     }
 
+    [Fact]
+    public void ToDomain_RoundTrips_TheCaptures_ThroughToDocument()
+    {
+        // Arrange
+        var id = MealId.NewId();
+        var userId = new UserId("firebase-uid-123");
+        var items = new[] { CreateItem() };
+        var captures = new[]
+        {
+            MealCapture.Create(CaptureId.NewId(), hasPhoto: true, new MealDescription("o frango é empanado")),
+            MealCapture.Create(CaptureId.NewId(), hasPhoto: false, new MealDescription("um copo de suco de laranja")),
+        };
+        var originalMeal = Meal.Create(id, userId, DateTimeOffset.UtcNow, MealType.Lunch, items, captures);
+
+        // Act
+        var document = MealDocumentMapper.ToDocument(originalMeal);
+        var roundTrippedMeal = MealDocumentMapper.ToDomain(id, userId, document, items);
+
+        // Assert
+        document.Captures.Should().HaveCount(2);
+        roundTrippedMeal.Captures.Should().Equal(captures);
+    }
+
+    [Fact]
+    public void ToDomain_HasNoCaptures_WhenTheDocumentPredatesThem()
+    {
+        // Arrange
+        var document = new MealDocument
+        {
+            UserId = "firebase-uid-123",
+            LoggedAt = DateTimeOffset.UtcNow,
+            MealType = nameof(MealType.Lunch),
+            Captures = null,
+        };
+
+        // Act
+        var meal = MealDocumentMapper.ToDomain(MealId.NewId(), new UserId("firebase-uid-123"), document, [CreateItem()]);
+
+        // Assert
+        meal.Captures.Should().BeEmpty();
+    }
+
     private static int? ValueUnlessMissing(int value, bool isMissing)
     {
         if (isMissing)

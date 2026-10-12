@@ -386,6 +386,161 @@ public sealed class MealServiceTest
         await _mealRepository.Received(1).DeleteAsync(id, Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task CreateAsync_SavesCatalogAndEstimatedItems_WithTheirCapture()
+    {
+        // Arrange
+        var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
+        _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
+        var captureId = CaptureId.NewId();
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [
+                new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram)),
+                new MealItemRequest(null, 150, nameof(MeasurementUnit.Gram), CreateChickenRequest(captureId)),
+            ],
+            Captures: [new MealCaptureRequest(captureId.Value, true, "o frango é grelhado")]);
+
+        // Act
+        var result = await _sut.CreateAsync(_userId, request);
+
+        // Assert
+        result.TotalCalories.Should().Be(260 + 240);
+        result.Items.Should().ContainSingle(item => item.FoodId == rice.Id.Value);
+        result.Items.Should().ContainSingle(item => item.EstimatedFood != null && item.EstimatedFood.CaptureId == captureId.Value);
+        result.Captures.Should().Equal(new MealCaptureDto(captureId.Value, true, "o frango é grelhado"));
+        await _mealRepository.Received(1).AddAsync(
+            Arg.Is<Meal>(meal => meal.Captures.Count == 1 && meal.Items.Count == 2),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_DoesNotReadTheCatalog_ForAnEstimatedItem()
+    {
+        // Arrange
+        var captureId = CaptureId.NewId();
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(null, 150, nameof(MeasurementUnit.Gram), CreateChickenRequest(captureId))],
+            Captures: [new MealCaptureRequest(captureId.Value, true, null)]);
+
+        // Act
+        await _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await _foodRepository.DidNotReceive().GetByIdAsync(Arg.Any<FoodId>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_Throws_AndSavesNothing_WhenAnItemHasBothAFoodIdAndAnEstimatedFood()
+    {
+        // Arrange
+        var captureId = CaptureId.NewId();
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(FoodId.NewId().Value, 150, nameof(MeasurementUnit.Gram), CreateChickenRequest(captureId))],
+            Captures: [new MealCaptureRequest(captureId.Value, true, null)]);
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task CreateAsync_Throws_AndSavesNothing_WhenAnItemHasNeitherAFoodIdNorAnEstimatedFood(string? foodId)
+    {
+        // Arrange
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(foodId, 150, nameof(MeasurementUnit.Gram))]);
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_Throws_AndSavesNothing_WhenAnEstimatedItemsCaptureIsNotSent()
+    {
+        // Arrange
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(null, 150, nameof(MeasurementUnit.Gram), CreateChickenRequest(CaptureId.NewId()))]);
+
+        // Act
+        var act = () => _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_KeepsTheExistingCaptures_WhenTheRequestOmitsThem()
+    {
+        // Arrange
+        var capture = MealCapture.Create(CaptureId.NewId(), hasPhoto: true, description: null);
+        var existingMeal = Meal.Create(
+            MealId.NewId(),
+            _userId,
+            DateTimeOffset.UtcNow,
+            MealType.Lunch,
+            [CreateItem(100, 1, 1, 1)],
+            [capture]);
+        _mealRepository.GetByIdAsync(existingMeal.Id, _userId, Arg.Any<CancellationToken>()).Returns(existingMeal);
+        var request = new UpdateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(null, 300, nameof(MeasurementUnit.Gram), CreateChickenRequest(capture.Id))]);
+
+        // Act
+        var result = await _sut.UpdateAsync(_userId, existingMeal.Id, request);
+
+        // Assert
+        result!.Captures.Should().ContainSingle(savedCapture => savedCapture.Id == capture.Id.Value);
+        result.TotalCalories.Should().Be(480);
+        await _mealRepository.Received(1).UpdateAsync(
+            Arg.Is<Meal>(meal => meal.Captures.Single() == capture),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ReplacesTheCaptures_WhenTheRequestSendsThem()
+    {
+        // Arrange
+        var oldCapture = MealCapture.Create(CaptureId.NewId(), hasPhoto: true, description: null);
+        var existingMeal = Meal.Create(MealId.NewId(), _userId, DateTimeOffset.UtcNow, MealType.Lunch, [CreateItem(100, 1, 1, 1)], [oldCapture]);
+        _mealRepository.GetByIdAsync(existingMeal.Id, _userId, Arg.Any<CancellationToken>()).Returns(existingMeal);
+        var newCaptureId = CaptureId.NewId();
+        var request = new UpdateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(null, 150, nameof(MeasurementUnit.Gram), CreateChickenRequest(newCaptureId))],
+            [new MealCaptureRequest(newCaptureId.Value, false, "peito de frango grelhado, 150 g")]);
+
+        // Act
+        var result = await _sut.UpdateAsync(_userId, existingMeal.Id, request);
+
+        // Assert
+        result!.Captures.Should().Equal(new MealCaptureDto(newCaptureId.Value, false, "peito de frango grelhado, 150 g"));
+    }
+
+    private static EstimatedFoodRequest CreateChickenRequest(CaptureId captureId) => new(
+        "Peito de frango grelhado",
+        captureId.Value,
+        nameof(MeasurementUnit.Gram),
+        160,
+        32,
+        0,
+        3);
+
     private Meal CreateMeal(IReadOnlyList<MealItem> items, MealId? id = null) => Meal.Create(
         id ?? MealId.NewId(),
         _userId,

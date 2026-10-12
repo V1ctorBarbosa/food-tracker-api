@@ -118,6 +118,116 @@ public sealed class MealTest
         summary.TotalFat.Should().Be(meal.TotalFat);
     }
 
+    [Fact]
+    public void Create_HasNoCaptures_WhenNoneAreGiven()
+    {
+        // Act
+        var meal = Meal.Create(MealId.NewId(), new UserId("firebase-uid-123"), DateTimeOffset.UtcNow, MealType.Lunch, [CreateItem(100, 1, 1, 1)]);
+
+        // Assert
+        meal.Captures.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Create_ReturnsMeal_MixingCatalogAndEstimatedItems_FromItsCapture()
+    {
+        // Arrange
+        var capture = MealCapture.Create(CaptureId.NewId(), hasPhoto: true, description: null);
+        var items = new[] { CreateItem(260, 5.4, 56, 0.6), CreateEstimatedItem(capture.Id) };
+
+        // Act
+        var meal = Meal.Create(MealId.NewId(), new UserId("firebase-uid-123"), DateTimeOffset.UtcNow, MealType.Lunch, items, [capture]);
+
+        // Assert
+        meal.Items.Should().HaveCount(2);
+        meal.Captures.Should().ContainSingle().Which.Should().Be(capture);
+        meal.TotalCalories.Value.Should().Be(260 + 248);
+    }
+
+    [Fact]
+    public void Create_KeepsACapture_WhoseItemsWereAllRemoved()
+    {
+        // Arrange
+        var capture = MealCapture.Create(CaptureId.NewId(), hasPhoto: true, description: null);
+
+        // Act
+        var meal = Meal.Create(MealId.NewId(), new UserId("firebase-uid-123"), DateTimeOffset.UtcNow, MealType.Lunch, [CreateItem(100, 1, 1, 1)], [capture]);
+
+        // Assert
+        meal.Captures.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Create_Throws_WhenAnEstimatedItemComesFromACaptureTheMealDoesNotHave()
+    {
+        // Arrange
+        var items = new[] { CreateEstimatedItem(CaptureId.NewId()) };
+
+        // Act
+        var act = () => Meal.Create(MealId.NewId(), new UserId("firebase-uid-123"), DateTimeOffset.UtcNow, MealType.Lunch, items, []);
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Create_Throws_WhenTheSameCaptureAppearsTwice()
+    {
+        // Arrange
+        var capture = MealCapture.Create(CaptureId.NewId(), hasPhoto: true, description: null);
+
+        // Act
+        var act = () => Meal.Create(
+            MealId.NewId(),
+            new UserId("firebase-uid-123"),
+            DateTimeOffset.UtcNow,
+            MealType.Lunch,
+            [CreateItem(100, 1, 1, 1)],
+            [capture, capture]);
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(Meal.MaximumCaptureCount, false)]
+    [InlineData(Meal.MaximumCaptureCount + 1, true)]
+    public void Create_EnforcesTheCaptureLimit(int captureCount, bool shouldThrow)
+    {
+        // Arrange
+        var captures = Enumerable.Range(0, captureCount)
+            .Select(_ => MealCapture.Create(CaptureId.NewId(), hasPhoto: true, description: null))
+            .ToList();
+
+        // Act
+        var act = () => Meal.Create(
+            MealId.NewId(),
+            new UserId("firebase-uid-123"),
+            DateTimeOffset.UtcNow,
+            MealType.Lunch,
+            [CreateItem(100, 1, 1, 1)],
+            captures);
+
+        // Assert
+        if (shouldThrow)
+        {
+            act.Should().Throw<ArgumentException>();
+            return;
+        }
+
+        act.Should().NotThrow();
+    }
+
+    private static MealItem CreateEstimatedItem(CaptureId captureId) => MealItem.FromEstimatedFood(
+        MealItemId.NewId(),
+        EstimatedFood.Create(
+            "Arroz integral cozido",
+            MeasurementUnit.Gram,
+            new NutritionAmount(new Kilocalories(124), new Grams(2.6), new Grams(25.8), new Grams(1))),
+        captureId,
+        200,
+        MeasurementUnit.Gram);
+
     private static MealItem CreateItem(int calories, double protein, double carbs, double fat) => MealItem.Create(
         MealItemId.NewId(),
         FoodId.NewId(),
