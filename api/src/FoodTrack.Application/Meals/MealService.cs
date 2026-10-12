@@ -124,52 +124,13 @@ public sealed class MealService
 
     private static MealItem ResolveItem(Food food, MealItemRequest itemRequest)
     {
-        if (itemRequest.FoodServingId is { } servingIdValue)
+        if (string.IsNullOrWhiteSpace(itemRequest.Unit))
         {
-            return ResolveItemFromServing(food, servingIdValue, itemRequest.ServingCount);
+            throw new ArgumentException($"A unit is required for food '{itemRequest.FoodId}'.", nameof(itemRequest));
         }
 
-        if (itemRequest.Quantity is { } quantity && itemRequest.Unit is { } unitValue)
-        {
-            return ResolveItemFromQuantity(food, quantity, unitValue);
-        }
-
-        throw new ArgumentException(
-            "Provide either Quantity+Unit or FoodServingId+ServingCount for each meal item.",
-            nameof(itemRequest));
-    }
-
-    private static MealItem ResolveItemFromServing(Food food, string servingIdValue, double? servingCount)
-    {
-        if (servingCount is not { } count)
-        {
-            throw new ArgumentException("ServingCount is required when FoodServingId is provided.", nameof(servingCount));
-        }
-
-        var servingId = new FoodServingId(servingIdValue);
-        var serving = food.Servings.FirstOrDefault(candidate => candidate.Id == servingId);
-        if (serving is null)
-        {
-            throw new ArgumentException($"Food '{food.Id.Value}' has no serving '{servingIdValue}'.", nameof(servingIdValue));
-        }
-
-        var nutrition = NutritionCalculator.Calculate(food, servingId, count);
-        var resolvedQuantity = serving.Quantity * count;
-
-        return MealItem.Create(
-            MealItemId.NewId(),
-            food.Id,
-            resolvedQuantity,
-            serving.Unit,
-            nutrition.Calories,
-            nutrition.Protein,
-            nutrition.Carbs,
-            nutrition.Fat);
-    }
-
-    private static MealItem ResolveItemFromQuantity(Food food, double quantity, string unitValue)
-    {
-        var unit = Enum.Parse<MeasurementUnit>(unitValue, ignoreCase: true);
+        var unit = Enum.Parse<MeasurementUnit>(itemRequest.Unit, ignoreCase: true);
+        var quantity = itemRequest.Quantity;
         var nutrition = NutritionCalculator.Calculate(food, quantity, unit);
 
         return MealItem.Create(

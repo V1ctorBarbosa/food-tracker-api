@@ -40,11 +40,10 @@ public sealed class FoodDocumentMapperTest
     }
 
     [Fact]
-    public void ToDomain_RoundTrips_ThroughToDocument_IncludingServings()
+    public void ToDomain_RoundTrips_ThroughToDocument()
     {
         // Arrange
         var id = FoodId.NewId();
-        var serving = FoodServing.Create(FoodServingId.NewId(), "container", 170, MeasurementUnit.Gram);
         var originalFood = Food.Create(
             id,
             "Yogurt",
@@ -54,12 +53,11 @@ public sealed class FoodDocumentMapperTest
             new Kilocalories(61),
             new Grams(3.5),
             new Grams(4.7),
-            new Grams(3.3),
-            [serving]);
+            new Grams(3.3));
 
         // Act
         var document = FoodDocumentMapper.ToDocument(originalFood);
-        var roundTrippedFood = FoodDocumentMapper.ToDomain(id, document, originalFood.Servings);
+        var roundTrippedFood = FoodDocumentMapper.ToDomain(id, document);
 
         // Assert
         roundTrippedFood.Id.Should().Be(id);
@@ -71,7 +69,6 @@ public sealed class FoodDocumentMapperTest
         roundTrippedFood.ProteinPerBaseUnit.Should().Be(originalFood.ProteinPerBaseUnit);
         roundTrippedFood.CarbsPerBaseUnit.Should().Be(originalFood.CarbsPerBaseUnit);
         roundTrippedFood.FatPerBaseUnit.Should().Be(originalFood.FatPerBaseUnit);
-        roundTrippedFood.Servings.Should().BeEquivalentTo(originalFood.Servings);
     }
 
     [Fact]
@@ -92,7 +89,7 @@ public sealed class FoodDocumentMapperTest
 
         // Act
         var document = FoodDocumentMapper.ToDocument(customFood);
-        var roundTrippedFood = FoodDocumentMapper.ToDomain(id, document, []);
+        var roundTrippedFood = FoodDocumentMapper.ToDomain(id, document);
 
         // Assert
         roundTrippedFood.ExternalId.Should().BeNull();
@@ -131,9 +128,9 @@ public sealed class FoodDocumentMapperTest
 
         // Act
         var customFoodDocument = FoodDocumentMapper.ToDocument(customFood);
-        var roundTrippedCustomFood = FoodDocumentMapper.ToDomain(customFoodId, customFoodDocument, []);
+        var roundTrippedCustomFood = FoodDocumentMapper.ToDomain(customFoodId, customFoodDocument);
         var cachedFoodDocument = FoodDocumentMapper.ToDocument(cachedFood);
-        var roundTrippedCachedFood = FoodDocumentMapper.ToDomain(cachedFoodId, cachedFoodDocument, []);
+        var roundTrippedCachedFood = FoodDocumentMapper.ToDomain(cachedFoodId, cachedFoodDocument);
 
         // Assert
         customFoodDocument.OwnerId.Should().Be("firebase-uid-123");

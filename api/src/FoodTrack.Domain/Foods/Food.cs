@@ -4,8 +4,8 @@ using FoodTrack.Domain.Users;
 namespace FoodTrack.Domain.Foods;
 
 /// <summary>
-/// A food available in the local cache of the external nutritional source (docs section 13).
-/// Aggregate root for its <see cref="FoodServing"/> children.
+/// A food available in the local cache of the external nutritional source (docs section 13), or
+/// a custom food a user created.
 /// </summary>
 public sealed class Food
 {
@@ -28,8 +28,6 @@ public sealed class Food
 
     public Grams FatPerBaseUnit { get; }
 
-    public IReadOnlyList<FoodServing> Servings { get; }
-
     /// <summary>Owner of a personal (<see cref="FoodSource.Custom"/>) food. Null for the shared
     /// cache of USDA/Open Food Facts results, which every user can see.</summary>
     public UserId? OwnerId { get; }
@@ -44,7 +42,6 @@ public sealed class Food
         Grams proteinPerBaseUnit,
         Grams carbsPerBaseUnit,
         Grams fatPerBaseUnit,
-        IReadOnlyList<FoodServing> servings,
         UserId? ownerId)
     {
         Id = id;
@@ -56,7 +53,6 @@ public sealed class Food
         ProteinPerBaseUnit = proteinPerBaseUnit;
         CarbsPerBaseUnit = carbsPerBaseUnit;
         FatPerBaseUnit = fatPerBaseUnit;
-        Servings = servings;
         OwnerId = ownerId;
     }
 
@@ -77,7 +73,6 @@ public sealed class Food
         ProteinPerBaseUnit,
         CarbsPerBaseUnit,
         FatPerBaseUnit,
-        Servings,
         OwnerId);
 
     public static Food Create(
@@ -90,7 +85,6 @@ public sealed class Food
         Grams proteinPerBaseUnit,
         Grams carbsPerBaseUnit,
         Grams fatPerBaseUnit,
-        IReadOnlyList<FoodServing>? servings = null,
         UserId? ownerId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -108,7 +102,6 @@ public sealed class Food
             proteinPerBaseUnit,
             carbsPerBaseUnit,
             fatPerBaseUnit,
-            servings ?? [],
             ownerId);
     }
 }

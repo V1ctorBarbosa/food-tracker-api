@@ -75,7 +75,6 @@ The application must remain simple in the MVP. The intent is not to build a prof
 │ WeightEntries           │
 │ WaterEntries            │
 │ Foods                   │
-│ FoodServings            │
 └─────────────────────────┘
              ▲
              │
@@ -206,7 +205,6 @@ MealItem
 WeightEntry
 WaterEntry
 Food
-FoodServing
 ```
 
 Relationships:
@@ -220,9 +218,6 @@ User
  ├── WeightEntries
  │
  └── WaterEntries
-
-Food
- └── FoodServings
 ```
 
 The dashboard is not a persisted entity.
@@ -360,7 +355,7 @@ Example:
 Total: 1300 ml
 ```
 
-Water reuses the same volume units and servings described in Sections 14 and 16 (`ml`, `L`, or specific servings such as glass, cup, or bottle), so the user can log it however feels most natural.
+Water is logged in the volume units described in section 15 (`ml`, `L`).
 
 ## Important
 
@@ -655,9 +650,9 @@ Where the base unit comes from:
 
 ---
 
-# 17. FoodServing
+# 17. Servings (removed)
 
-`FoodServing` (a named portion such as "1 can = 350 ml") still exists in the model and in `MealItemRequest`, but nothing creates servings any more: section 15 dropped household measures. It is due to be removed.
+There are no named portions ("1 can = 350 ml"). A meal item is always a quantity in the food's own unit, grams or milliliters (section 15). An earlier `FoodServing` model was removed without ever holding data.
 
 ---
 
@@ -1087,12 +1082,7 @@ waterEntries/
 
 foods/
     {foodId}
-
-foodServings/
-    {servingId}
 ```
-
-`FoodServing` could also be modeled as a subcollection of `Food`.
 
 The physical decision can be made during implementation.
 
@@ -1105,7 +1095,6 @@ MealItem
 WeightEntry
 WaterEntry
 Food
-FoodServing
 ```
 
 ---
@@ -1406,7 +1395,7 @@ Possibilities:
 18. Create Food.
 19. Integrate external nutritional API.
 20. Implement cache.
-21. Create FoodServing.
+21. Measure each food in g or ml (named servings were dropped).
 22. Implement unit conversion.
 
 ## Phase 5 — Meals
@@ -1453,7 +1442,7 @@ Possibilities:
 9. `Food` represents nutritional information/cache.
 10. `MealItem` stores a nutritional snapshot.
 11. Mass and volume are different units.
-12. Servings are food-specific.
+12. A food is logged in its own unit: grams for food, milliliters for drinks.
 13. Persist historical facts.
 14. Derive charts and aggregations — including calorie, macronutrient (protein, carbs, fat), and water totals and charts, viewable individually or combined.
 15. Avoid unnecessary complexity in the MVP.
@@ -1481,7 +1470,6 @@ Firebase Auth            Firestore
                               +-- WeightEntries
                               +-- WaterEntries
                               +-- Foods
-                              +-- FoodServings
 
                               +
                               |

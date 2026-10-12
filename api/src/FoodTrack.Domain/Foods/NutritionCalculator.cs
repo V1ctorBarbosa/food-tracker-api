@@ -30,20 +30,4 @@ public static class NutritionCalculator
             new Grams(food.CarbsPerBaseUnit.Value * ratio),
             new Grams(food.FatPerBaseUnit.Value * ratio));
     }
-
-    public static NutritionAmount Calculate(Food food, FoodServingId servingId, double servingCount)
-    {
-        if (servingCount <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(servingCount), servingCount, "Serving count must be positive.");
-        }
-
-        var serving = food.Servings.FirstOrDefault(candidate => candidate.Id == servingId);
-        if (serving is null)
-        {
-            throw new ArgumentException($"Food '{food.Id.Value}' has no serving '{servingId.Value}'.", nameof(servingId));
-        }
-
-        return Calculate(food, serving.Quantity * servingCount, serving.Unit);
-    }
 }

@@ -36,7 +36,6 @@ public sealed class FoodTest
         food.ProteinPerBaseUnit.Value.Should().Be(31);
         food.CarbsPerBaseUnit.Value.Should().Be(0);
         food.FatPerBaseUnit.Value.Should().Be(3.6);
-        food.Servings.Should().BeEmpty();
     }
 
     [Fact]
@@ -102,29 +101,6 @@ public sealed class FoodTest
         food.OwnerId.Should().BeNull();
     }
 
-    [Fact]
-    public void Create_KeepsGivenServings()
-    {
-        // Arrange
-        var serving = FoodServing.Create(FoodServingId.NewId(), "can", 350, MeasurementUnit.Milliliter);
-
-        // Act
-        var food = Food.Create(
-            FoodId.NewId(),
-            "Coca-Cola",
-            FoodSource.Usda,
-            "12345",
-            new BaseUnit(100, MeasurementUnit.Milliliter),
-            new Kilocalories(42),
-            new Grams(0),
-            new Grams(10.6),
-            new Grams(0),
-            [serving]);
-
-        // Assert
-        food.Servings.Should().ContainSingle().Which.Should().Be(serving);
-    }
-
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -181,7 +157,6 @@ public sealed class FoodTest
     {
         // Arrange
         var ownerId = new UserId("owner-uid");
-        var serving = FoodServing.Create(FoodServingId.NewId(), "glass", 200, MeasurementUnit.Gram);
         var food = Food.Create(
             FoodId.NewId(),
             "Orange juice",
@@ -192,7 +167,6 @@ public sealed class FoodTest
             new Grams(0.7),
             new Grams(10.4),
             new Grams(0.2),
-            [serving],
             ownerId);
 
         // Act
