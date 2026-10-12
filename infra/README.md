@@ -101,7 +101,8 @@ aws ssm put-parameter --region us-east-2 --name /food-track/api/MealEstimates/Al
 ```
 
 Set a monthly spend limit on the Anthropic console as well: it is the hard cap on what estimates
-can cost, while the allowlist and the per-user rate limit (20 estimates an hour) only keep usage
+can cost, while the allowlist, the per-user rate limit (20 estimates an hour) and the monthly cap
+(300 estimates across all users, `MealEstimates:MonthlyEstimateLimit`) only keep usage
 reasonable.
 
 ### 6. Set the Terraform Cloud execution mode to Local
