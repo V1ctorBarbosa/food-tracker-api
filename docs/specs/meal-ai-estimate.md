@@ -67,7 +67,7 @@ The user wants to describe a meal the way they would to a person: take a photo o
   - every nutrient >= 0, calories per 100 at most 900 (pure fat), and protein + carbs + fat per 100 at most 100.
 - If the model reports that it found no food, the API answers `422` (`NoFoodRecognized`).
 - If Claude fails or times out, the API answers `502` (`EstimateUnavailable`). The app shows a retry message.
-- The response returns the items with their computed totals (D6). Nothing is persisted.
+- The response returns the `captureId` (minted by the API for Descrever) and the items with their computed totals (D6). Nothing is persisted.
 
 ### R4. Review screen ("Estimativa")
 
@@ -92,7 +92,8 @@ The user wants to describe a meal the way they would to a person: take a photo o
   - **catalog**: references a `Food` (today's behavior),
   - **estimated**: carries its own name, unit and nutrition per 100, plus the `captureId` it came from.
 - Both keep the nutritional snapshot (quantity, calories, protein, carbs, fat), so totals, dashboard and charts treat them the same.
-- The meal create/update request accepts both item kinds. An estimated item sends name, quantity, unit and per-100 values; the backend recomputes the snapshot from them and validates them with the same limits as R3.
+- The meal create/update request accepts both item kinds. An item sends exactly one of `foodId` or `estimatedFood` (name, `captureId`, base unit and per-100 values); the backend recomputes the snapshot from them and validates them with the same limits as R3. The response mirrors it: each item has either `foodId` or `estimatedFood`.
+- The request carries the meal's `captures`. On update, omitting `captures` keeps the ones the meal already has, so an older app build can still edit a meal that has them.
 - Re-saving a meal (the update endpoint replaces every item) keeps estimated items as they are: the client sends them back with their stored per-100 values.
 - Meal detail shows the item's own name for estimated items, with a small "estimado por IA" mark.
 
@@ -131,12 +132,13 @@ The user wants to describe a meal the way they would to a person: take a photo o
 ### Backend (`food-tracker-api`)
 
 **Domain**
-- `MealItem` gets an origin, modeled as a closed type with two cases rather than a nullable `FoodId`: `CatalogFoodOrigin(FoodId)` and `EstimatedOrigin(EstimatedFood, CaptureId)`.
+- `MealItem` gets an origin, modeled as a closed type with two cases rather than a nullable `FoodId`: `CatalogFoodOrigin(FoodId)` and `EstimatedFoodOrigin(EstimatedFood, CaptureId)`.
 - `EstimatedFood` value object: name, `BaseUnit` (100 g or 100 ml) and nutrition per base, with the limits from R3 as its invariants. Its calculation reuses `NutritionCalculator` math for a quantity.
 - `CaptureId` value object (GUID, like the other ids).
 - `MealCapture` value object: `CaptureId`, `HasPhoto`, `MealDescription?`. `Meal` holds `IReadOnlyList<MealCapture>`, enforces the cap (R6) and that every estimated item points at a capture of the same meal.
-- `MealDescription` value object: trimmed text, length limits from R3.
-- `MealEstimateInput` value object: optional `CaptureId`, optional `MealDescription`, invariant "at least one".
+- `MealDescription` value object: trimmed text, at most 500 characters.
+- `MealCapture` is also the input of an estimate: its invariant is "a photo, or a description of at least 10 characters". There is no separate input type.
+- A Descrever estimate has no upload slot, so the estimate use case mints its `CaptureId` and returns it with the items. Every Descrever re-run gets a new one; only the one confirmed ends up on the meal.
 
 **Application**
 - Port `IMealEstimator`: takes the image URL (optional) and the description (optional), returns the raw recognized items or "no food".
@@ -186,7 +188,7 @@ The user wants to describe a meal the way they would to a person: take a photo o
 
 Backend PR (`food-tracker-api`):
 
-1. Domain: `CaptureId`, `MealDescription`, `EstimatedFood`, `MealCapture`, `MealEstimateInput`, `MealItem` origins, `Meal` captures and invariants. Tests, including `[Theory]` for every limit in R3 and R6.
+1. Domain: `CaptureId`, `MealDescription`, `EstimatedFood`, `MealCapture`, `MealItem` origins, `Meal` captures and invariants. Tests, including `[Theory]` for every limit in R3 and R6.
 2. Persistence: document fields and mappers, old documents read as catalog. Tests.
 3. `MealService` with both item kinds, retag on save, photo delete on meal delete. Tests with substituted ports.
 4. `MealEstimateService` + ports. Tests: access denied, empty input, missing object, no food, invalid model answer, happy path for photo, photo + description and description only.
