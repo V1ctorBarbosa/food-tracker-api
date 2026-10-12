@@ -29,6 +29,7 @@ builder.Services.AddHttpClient<OpenFoodFactsFoodUnitClassifier>(client =>
 });
 builder.Services.AddScoped<IFoodUnitClassifier>(services => services.GetRequiredService<TacoFoodUnitClassifier>());
 builder.Services.AddScoped<IFoodUnitClassifier>(services => services.GetRequiredService<OpenFoodFactsFoodUnitClassifier>());
+builder.Services.AddSingleton(OpenFoodFactsRequestPacing.Default);
 builder.Services.AddScoped<BaseUnitBackfill>();
 
 using var host = builder.Build();
