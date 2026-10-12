@@ -644,7 +644,7 @@ Coca-Cola
 
 Where the base unit comes from:
 
-- **Open Food Facts**: the unit in the product's package quantity (`"350ml"` → ml, `"500 g"` → g), or ml when the quantity has no unit but the product is in the `en:beverages` category. Open Food Facts already reports a drink's nutrients per 100 ml (in fields still named `_100g`), so the values are used as they come.
+- **Open Food Facts**: the unit in the product's package quantity (`"350ml"` → ml, `"500 g"` → g), or, when the quantity has no unit, ml for the `en:beverages` category except beverage preparations (`en:beverage-preparations`: coffee capsules, drink powders), which stay in g. Open Food Facts already reports a drink's nutrients per 100 ml (in fields still named `_100g`), so the values are used as they come.
 - **TACO**: ml for the "Bebidas" category and for a fixed list of liquids filed elsewhere (juices, milks); g for everything else, yogurts included. TACO measures everything per 100 g, so for those drinks the values are read as per 100 ml. Drinks weigh 0.95 to 1.05 g per ml, so the error stays under 5%.
 - **Custom foods**: the user picks "Comida" (g) or "Bebida" (ml), and can change it later. Changing it moves the amounts already logged for that food to the new unit, number unchanged (350 g becomes 350 ml), keeping their nutritional snapshot.
 

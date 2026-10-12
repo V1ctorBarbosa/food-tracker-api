@@ -9,11 +9,13 @@ namespace FoodTrack.Infrastructure.Foods;
 /// are taken as they come; only the unit they are read in changes.
 /// The search endpoint does not return the structured "nutrition_data_per" or "product_quantity_unit",
 /// so the unit is read from the free-text package quantity ("350ml", "1 L", "6 x 350 ml", "500 g"),
-/// falling back to the beverages category when that text has no unit.
+/// falling back to the beverages category when that text has no unit. Beverage preparations
+/// (coffee capsules, drink powders) are filed under beverages too but are weighed, so they stay grams.
 /// </summary>
 internal static partial class OpenFoodFactsBaseUnitResolver
 {
     private const string BeveragesCategoryTag = "en:beverages";
+    private const string BeveragePreparationsCategoryTag = "en:beverage-preparations";
     private const string UnitGroupName = "unit";
 
     private static readonly IReadOnlyDictionary<string, MeasurementUnit> UnitsBySymbol =
@@ -35,13 +37,21 @@ internal static partial class OpenFoodFactsBaseUnitResolver
             return unit;
         }
 
-        if (categoryTags.Contains(BeveragesCategoryTag, StringComparer.OrdinalIgnoreCase))
+        if (HasCategory(categoryTags, BeveragePreparationsCategoryTag))
+        {
+            return MeasurementUnit.Gram;
+        }
+
+        if (HasCategory(categoryTags, BeveragesCategoryTag))
         {
             return MeasurementUnit.Milliliter;
         }
 
         return MeasurementUnit.Gram;
     }
+
+    private static bool HasCategory(IReadOnlyCollection<string> categoryTags, string categoryTag) =>
+        categoryTags.Contains(categoryTag, StringComparer.OrdinalIgnoreCase);
 
     private static MeasurementUnit? ReadUnitFromQuantity(string? quantity)
     {

@@ -73,6 +73,26 @@ public sealed class OpenFoodFactsBaseUnitResolverTest
         unit.Should().Be(MeasurementUnit.Milliliter);
     }
 
+    [Fact]
+    public void Resolve_ReturnsGram_ForABeveragePreparationWithNoQuantity()
+    {
+        // Arrange: Delta Q "Business magnetiQ" coffee capsules, as Open Food Facts lists them.
+        string[] categories =
+        [
+            "en:beverages-and-beverages-preparations",
+            "en:beverages",
+            "en:hot-beverages",
+            "en:beverage-preparations",
+            "en:coffee-capsules",
+        ];
+
+        // Act
+        var unit = OpenFoodFactsBaseUnitResolver.Resolve("", categories);
+
+        // Assert
+        unit.Should().Be(MeasurementUnit.Gram);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("1 lata")]
