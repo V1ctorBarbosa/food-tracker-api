@@ -42,11 +42,10 @@ The user wants to describe a meal the way they would to a person: take a photo o
 - Foto opens the camera ("Foto do prato", hint "Enquadre o prato inteiro, de cima, com boa luz."), with "Galeria" to pick an existing photo instead.
 - After the photo is taken or picked, the screen shows it with an **optional description field** and the "Calcular com IA" button.
 - Before upload the app resizes the image to at most **1024 px** on the longest side and encodes it as JPEG.
-- The app asks the API for an upload slot. The API creates a `captureId`, derives the object key itself (`users/{userId}/captures/{captureId}.jpg`) and returns a **presigned POST** that:
-  - allows only `image/jpeg`,
-  - limits the size to **5 MB**,
-  - expires in **5 minutes**,
-  - tags the object as pending (R7).
+- The app asks the API for an upload slot. The API creates a `captureId`, derives the object key itself (`pending/{userId}/{captureId}.jpg`, R7) and returns a **presigned PUT** URL that:
+  - is signed for `Content-Type: image/jpeg`, returned in `headers` for the app to send exactly,
+  - expires in **5 minutes**.
+- A presigned PUT cannot cap the body size, so the API checks it instead: a photo above **5 MB** is refused when it is estimated or saved on a meal.
 - The client never sends an S3 key. Every later request refers to the `captureId`, and the API rebuilds the key from the signed-in user id, so one user can never point at another user's photo.
 
 ### R3. Estimate request
@@ -56,7 +55,7 @@ The user wants to describe a meal the way they would to a person: take a photo o
   - Descrever: description required, **10 to 500 characters**.
   - Foto: description optional, **up to 500 characters**.
 - When a `captureId` is given, the API checks the object exists under the user's prefix, otherwise `400`.
-- The API calls Claude with the image (by a short-lived presigned GET URL) and/or the description, asking for structured output (a tool with a JSON schema), not free text.
+- The API calls Claude with the image (by a short-lived presigned GET URL) and/or the description, asking for structured output (`output_config.format` with a JSON schema), not free text.
 - Each returned item has:
   - `name` in Brazilian Portuguese (for example "Arroz branco cozido"),
   - `quantity` and `unit` (`Gram` or `Milliliter`),
@@ -105,8 +104,9 @@ The user wants to describe a meal the way they would to a person: take a photo o
 
 ### R7. Photo lifecycle
 
-- An uploaded photo is tagged **pending**. An S3 lifecycle rule deletes pending objects after **1 day**, which covers estimates that were never confirmed.
-- When a meal is saved with a capture, the API retags its photo as **attached**.
+- An uploaded photo lands under the **`pending/`** prefix. An S3 lifecycle rule deletes everything under `pending/` after **1 day**, which covers estimates that were never confirmed. A prefix, not a tag, because a lifecycle filter matches a key prefix, and it keeps the upload a plain PUT.
+- When a meal is saved with a capture, the API moves its photo to **`attached/{userId}/{captureId}.jpg`**, which no rule touches. A photo already attached cannot be estimated again.
+- When a meal update drops a capture, its photo is deleted.
 - Deleting a meal deletes its captures' photos.
 - Deleting the account deletes everything under `users/{userId}/`. The existing delete-account flow must include this.
 - A capture whose items were all removed from the meal keeps its photo until the meal is deleted (no orphan sweep in v1).
@@ -142,29 +142,30 @@ The user wants to describe a meal the way they would to a person: take a photo o
 
 **Application**
 - Port `IMealEstimator`: takes the image URL (optional) and the description (optional), returns the raw recognized items or "no food".
-- Port `IMealPhotoStorage`: create the upload slot, check an object exists, get a read URL, mark attached, delete one, delete a user's prefix.
+- Port `IMealPhotoStorage`: create the upload slot, read a photo's state (missing, too large, pending, attached), get a read URL for a pending or an attached photo, mark attached, delete one, delete a user's photos.
+- `MealPhotoLifecycle`: keeps photos in step with a meal's captures (new photo captures must be uploaded, attached after save, dropped ones deleted, all deleted with the meal), so `MealService` only orchestrates.
 - Port `IMealEstimateAccessPolicy`: whether a user id may use the feature (backed by the allowlist).
 - `MealEstimateService`: `CreateUploadSlotAsync` and `EstimateAsync` (access check, input validation, storage check, estimator call, answer validation, totals).
-- `MealService`: resolve both item kinds; on create/update retag new captures' photos; on delete remove photos.
+- `MealService`: resolve both item kinds; on create/update check and attach new captures' photos and delete dropped ones; on delete remove photos.
 - Account deletion use case: also calls `IMealPhotoStorage` to delete the user prefix.
 
 **Infrastructure**
-- `ClaudeMealEstimator` implements `IMealEstimator` with the official Anthropic SDK: model from configuration (default `claude-haiku-5-5`), image as a URL source, one tool with the R3 JSON schema, forced tool choice, the prompt with D5. HTTP timeout 25 s.
-- `S3MealPhotoStorage` implements `IMealPhotoStorage` (presigned POST with content-type, size and tag conditions; presigned GET; tagging; delete).
+- `ClaudeMealEstimator` implements `IMealEstimator` with the official Anthropic SDK: model from configuration (default `claude-haiku-5-5`), image as a URL source, structured output with the R3 JSON schema (no tool: the answer is the JSON itself), the prompt with D5. HTTP timeout 25 s, one retry. A stop reason other than `end_turn` (refusal, `max_tokens`) counts as unavailable. Prompt, schema and answer parser live in `MealEstimatePrompt` and `RecognizedMealJsonParser`, apart from the SDK call.
+- `S3MealPhotoStorage` implements `IMealPhotoStorage` (presigned PUT signed for the content type; HEAD for state and size; presigned GET; copy from `pending/` to `attached/`; delete; list a user's prefixes on account deletion). `MealPhotoKeys` builds every key.
 - `ConfigurationMealEstimateAccessPolicy` reads the allowlist.
 - `MealItemDocument` gains `Origin`, `Name`, `CaptureId` and the per-100 values; documents without `Origin` read as catalog. `MealDocument` gains `Captures`.
 
 **Api**
-- `POST /meal-estimates/upload-slots` → `{ captureId, url, fields, expiresAt }`.
+- `POST /meal-estimates/upload-slots` → `{ captureId, uploadUrl, headers, expiresAt }`.
 - `POST /meal-estimates` with `{ captureId?, description? }` → `{ items: [...] }`.
 - Rate limit policy for both (R8). `NoFoodRecognized` → `422`, `EstimateUnavailable` → `502` in `GlobalExceptionHandler`.
 - Meal endpoints: item request accepts the estimated kind; `MealDto` items gain `origin`, `name`, `captureId`; `MealDto` gains `captures` with photo URLs.
 - Profile response gains `canEstimateMeals`.
 
 **Infra**
-- `terraform/app`: private S3 bucket (block public access, SSE-S3 encryption, lifecycle rule for pending tag), bucket name passed to the Lambda as an environment variable. Lambda `timeout` from 30 to **60** s, so a slow vision call plus Firestore writes does not cut the request.
-- `terraform/bootstrap` (applied by hand): Lambda role gets `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, `s3:PutObjectTagging` and `s3:ListBucket` on that bucket only.
-- SSM, by hand: Anthropic API key and the allowlist under the existing API parameter path (D11).
+- `terraform/bootstrap` (applied by hand, because the CI user may only manage the Lambda function): private S3 bucket `food-track-meal-photos-{accountId}` (block public access, owner-enforced, SSE-S3, lifecycle rule expiring `pending/` after 1 day), and the Lambda role gets `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` on its objects and `s3:ListBucket` on the bucket only. Output `meal_photos_bucket_name`.
+- `terraform/app`: bucket name passed to the Lambda as `MealPhotos__BucketName`, from the `MEAL_PHOTOS_BUCKET_NAME` GitHub secret like the role ARN. Lambda `timeout` from 30 to **60** s, so two 25 s model attempts plus Firestore writes fit.
+- SSM, by hand: `Anthropic/ApiKey` (SecureString) and `MealEstimates/AllowedUserIds` (comma-separated) under the existing API parameter path (D11).
 - The zero-spend AWS budget will alert on the first S3 cent. Expected.
 
 **Docs**
@@ -190,9 +191,9 @@ Backend PR (`food-tracker-api`):
 
 1. Domain: `CaptureId`, `MealDescription`, `EstimatedFood`, `MealCapture`, `MealItem` origins, `Meal` captures and invariants. Tests, including `[Theory]` for every limit in R3 and R6.
 2. Persistence: document fields and mappers, old documents read as catalog. Tests.
-3. `MealService` with both item kinds, retag on save, photo delete on meal delete. Tests with substituted ports.
+3. `MealService` with both item kinds and `MealPhotoLifecycle` (check, attach, delete photos). Tests with substituted ports.
 4. `MealEstimateService` + ports. Tests: access denied, empty input, missing object, no food, invalid model answer, happy path for photo, photo + description and description only.
-5. `ClaudeMealEstimator`: tests for the request it builds and the parsing of the tool answer (pure parts extracted from the SDK call). The live call is an integration concern and is not unit tested.
+5. `ClaudeMealEstimator`: tests for the schema, the prompt text and the parsing of the answer (pure parts extracted from the SDK call). The live call is an integration concern and is not unit tested.
 6. `S3MealPhotoStorage` and the allowlist policy. Pure key-building logic unit tested; S3 calls are integration.
 7. Endpoints, rate limit policy, error mapping, profile field, account deletion.
 8. Infra (bucket, IAM, timeout), implementation doc and Postman.
@@ -208,7 +209,7 @@ Frontend PR (`food-tracker-app`), after the backend is deployed:
 
 Rollout:
 
-15. Write the SSM parameters, apply bootstrap by hand, set the Anthropic monthly limit.
+15. Before merging the backend PR: apply bootstrap by hand, add the `MEAL_PHOTOS_BUCKET_NAME` GitHub secret (the deploy fails without it), write the two SSM parameters, set the Anthropic monthly limit.
 16. Deploy the backend, try both endpoints from Postman.
 17. Release the app.
 

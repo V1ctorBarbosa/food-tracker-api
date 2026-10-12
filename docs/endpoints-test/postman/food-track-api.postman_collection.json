@@ -290,6 +290,19 @@
           }
         },
         {
+          "name": "Create Meal with Estimated Items",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/meals", "host": ["{{baseUrl}}"], "path": ["meals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mealType\": \"Lunch\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 200,\n      \"unit\": \"Gram\"\n    },\n    {\n      \"foodId\": null,\n      \"quantity\": 150,\n      \"unit\": \"Gram\",\n      \"estimatedFood\": {\n        \"name\": \"Peito de frango grelhado\",\n        \"captureId\": \"{{captureId}}\",\n        \"baseUnit\": \"Gram\",\n        \"caloriesPerBaseUnit\": 160,\n        \"proteinPerBaseUnit\": 32,\n        \"carbsPerBaseUnit\": 0,\n        \"fatPerBaseUnit\": 3\n      }\n    }\n  ],\n  \"captures\": [\n    { \"id\": \"{{captureId}}\", \"hasPhoto\": true, \"description\": \"o frango é grelhado\" }\n  ]\n}"
+            },
+            "description": "A meal can mix catalog items (foodId) and AI-estimated items (estimatedFood, sent back exactly as an estimate returned it); each item has exactly one of the two. Every estimated item's captureId must be one of the meal's captures, and a capture with hasPhoto must have its photo uploaded (400 otherwise). On update, omitting captures keeps the meal's current ones; sending a list replaces them and deletes the photos of the captures left out. Each capture in the response carries a short-lived photoUrl."
+          }
+        },
+        {
           "name": "Update Meal",
           "request": {
             "method": "PUT",
@@ -308,6 +321,83 @@
             "method": "DELETE",
             "header": [],
             "url": { "raw": "{{baseUrl}}/meals/:id", "host": ["{{baseUrl}}"], "path": ["meals", ":id"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meal Estimates",
+      "description": "AI estimates of a meal from a photo, a description, or both (docs/specs/meal-ai-estimate.md). Only users on the MealEstimates:AllowedUserIds allowlist may call these (403 MealEstimateAccessDenied otherwise; GET /profile reports it as canEstimateMeals), and each user gets 20 calls an hour across both routes (429). Nothing is saved here: send the returned items to Create Meal.",
+      "item": [
+        {
+          "name": "Create Photo Upload Slot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('captureId', body.captureId);",
+                  "pm.collectionVariables.set('photoUploadUrl', body.uploadUrl);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/meal-estimates/upload-slots", "host": ["{{baseUrl}}"], "path": ["meal-estimates", "upload-slots"] },
+            "description": "Returns a captureId and a presigned S3 URL valid for 5 minutes, plus the headers the upload must send exactly. The test script stores captureId and photoUploadUrl in collection variables for the next requests."
+          }
+        },
+        {
+          "name": "Upload Photo",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "image/jpeg" }],
+            "body": { "mode": "file", "file": {} },
+            "url": { "raw": "{{photoUploadUrl}}", "host": ["{{photoUploadUrl}}"] },
+            "description": "PUT the JPEG straight to S3 (pick the file in the Body tab). No bearer token: the URL is already signed, and an Authorization header would make S3 reject it. Photos above 5 MB are refused when estimated."
+          }
+        },
+        {
+          "name": "Estimate Meal from Photo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/meal-estimates", "host": ["{{baseUrl}}"], "path": ["meal-estimates"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"captureId\": \"{{captureId}}\",\n  \"description\": \"o frango é empanado e frito\"\n}"
+            },
+            "description": "Photo estimate: captureId from the upload slot, description optional (up to 500 characters). When the description contradicts the photo, the description wins. 400 if the photo is missing, expired or too large; 422 NoFoodRecognized; 502 EstimateUnavailable when the model fails. Send it again with another description on the same captureId to re-estimate."
+          }
+        },
+        {
+          "name": "Estimate Meal from Description",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('captureId', body.captureId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/meal-estimates", "host": ["{{baseUrl}}"], "path": ["meal-estimates"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"captureId\": null,\n  \"description\": \"200 g de arroz integral e um peito de frango grelhado\"\n}"
+            },
+            "description": "Description-only estimate: no captureId, description of 10 to 500 characters. The response carries a new captureId (hasPhoto false) to send as the meal's capture; the test script stores it in captureId."
           }
         }
       ]
@@ -335,5 +425,9 @@
         }
       ]
     }
+  ],
+  "variable": [
+    { "key": "captureId", "value": "", "description": "Set by Create Photo Upload Slot and Estimate Meal from Description." },
+    { "key": "photoUploadUrl", "value": "", "description": "Set by Create Photo Upload Slot; expires 5 minutes after it is created." }
   ]
 }

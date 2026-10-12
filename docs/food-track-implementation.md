@@ -403,6 +403,8 @@ Totals can be calculated from `MealItems`.
 
 It may be useful to persist the totals to make dashboard queries easier, as long as the API keeps them consistent when items change.
 
+A meal also keeps its **captures**: the AI estimates (a photo, a description, or both) its estimated items came from (`docs/specs/meal-ai-estimate.md`). A capture records its id, whether it has a photo and the description used. A meal has at most 5 captures, every estimated item must point at one of them, and a capture stays on the meal even after all of its items are removed, so its photo is cleaned up when the meal is deleted.
+
 ---
 
 # 11. MealItem
@@ -438,6 +440,13 @@ Example:
   "fat": 5
 }
 ```
+
+A `MealItem` has one of two **origins**:
+
+- **Catalog**: it references a `Food` (`foodId`), as in the example above.
+- **Estimated**: an AI estimate recognized it. There is no `Food`; the item carries the food itself, a name plus nutrition per 100 g or 100 ml, and the id of the capture it came from. It never becomes a catalog `Food`.
+
+Both keep the same snapshot (quantity, calories, protein, carbs, fat), so totals, the dashboard and the charts treat them alike, and a meal can mix them. Keeping an estimated item's values per 100, not as totals, is what lets its quantity be edited later and recalculated exactly like a catalog item.
 
 ---
 
