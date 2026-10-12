@@ -13,3 +13,8 @@ output "lambda_execution_role_arn" {
   description = "Feed this into the app-level Terraform config's lambda_execution_role_arn variable."
   value       = aws_iam_role.lambda_execution.arn
 }
+
+output "meal_photos_bucket_name" {
+  description = "Feed this into the app-level Terraform config's meal_photos_bucket_name variable."
+  value       = aws_s3_bucket.meal_photos.bucket
+}

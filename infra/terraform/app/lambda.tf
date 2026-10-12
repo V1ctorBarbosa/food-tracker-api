@@ -7,7 +7,9 @@ resource "aws_lambda_function" "api" {
   handler = "FoodTrack.Api"
   runtime = "dotnet10"
 
-  timeout = 30
+  # An AI meal estimate waits on the model for up to two 25 s attempts, so the function needs more
+  # room than its other requests, which finish in well under a second.
+  timeout = 60
   # Lambda hands out CPU in proportion to memory, so more memory shortens the cold start (runtime
   # boot, dependency injection, first Firestore call) as well as every warm request.
   memory_size = 1024
@@ -19,6 +21,7 @@ resource "aws_lambda_function" "api" {
     variables = {
       Firebase__ProjectId     = var.firebase_project_id
       AwsParameterStore__Path = var.api_parameter_store_path
+      MealPhotos__BucketName  = var.meal_photos_bucket_name
       ASPNETCORE_ENVIRONMENT  = "Production"
     }
   }

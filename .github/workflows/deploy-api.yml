@@ -69,6 +69,7 @@ jobs:
         env:
           TF_INPUT: "false"
           TF_VAR_lambda_execution_role_arn: ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}
+          TF_VAR_meal_photos_bucket_name: ${{ secrets.MEAL_PHOTOS_BUCKET_NAME }}
         run: |
           terraform init
           terraform apply -auto-approve -var="lambda_zip_path=$LAMBDA_ZIP_PATH"
