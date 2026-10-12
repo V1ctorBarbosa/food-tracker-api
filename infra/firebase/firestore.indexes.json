@@ -1,14 +1,160 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "meals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "UserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "Date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "meals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "UserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "LoggedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "waterEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "UserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "LoggedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "weightEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "UserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "Date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "weightEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "UserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "Date",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "weightEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "UserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "LoggedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "weightEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "UserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "LoggedAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    }
+  ],
   "fieldOverrides": [
     {
       "collectionGroup": "items",
       "fieldPath": "FoodId",
       "indexes": [
-        { "queryScope": "COLLECTION", "order": "ASCENDING" },
-        { "queryScope": "COLLECTION", "order": "DESCENDING" },
-        { "queryScope": "COLLECTION", "arrayConfig": "CONTAINS" },
-        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
+        {
+          "queryScope": "COLLECTION",
+          "order": "ASCENDING"
+        },
+        {
+          "queryScope": "COLLECTION",
+          "order": "DESCENDING"
+        },
+        {
+          "queryScope": "COLLECTION",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
       ]
     }
   ]
