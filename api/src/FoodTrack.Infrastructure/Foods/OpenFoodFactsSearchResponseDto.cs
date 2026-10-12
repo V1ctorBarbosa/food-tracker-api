@@ -25,6 +25,13 @@ internal sealed class OpenFoodFactsHitDto
     [JsonPropertyName("brands")]
     public List<string> Brands { get; set; } = [];
 
+    /// <summary>Free-text package size, e.g. "350ml", "1 L" or "500 g".</summary>
+    [JsonPropertyName("quantity")]
+    public string? Quantity { get; set; }
+
+    [JsonPropertyName("categories_tags")]
+    public List<string> CategoriesTags { get; set; } = [];
+
     [JsonPropertyName("nutriments")]
     public OpenFoodFactsNutrimentsDto? Nutriments { get; set; }
 }

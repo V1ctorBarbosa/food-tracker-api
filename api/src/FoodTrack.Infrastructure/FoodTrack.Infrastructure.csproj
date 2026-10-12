@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="FoodTrack.Tests" />
+    <InternalsVisibleTo Include="FoodTrack.Migrations" />
   </ItemGroup>
 
 </Project>

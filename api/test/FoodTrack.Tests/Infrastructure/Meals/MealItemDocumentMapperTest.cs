@@ -64,4 +64,21 @@ public sealed class MealItemDocumentMapperTest
         roundTrippedItem.Carbs.Should().Be(originalItem.Carbs);
         roundTrippedItem.Fat.Should().Be(originalItem.Fat);
     }
+
+    [Theory]
+    [InlineData("Gram", MeasurementUnitCategory.Volume, "Milliliter")]
+    [InlineData("Kilogram", MeasurementUnitCategory.Volume, "Liter")]
+    [InlineData("Milliliter", MeasurementUnitCategory.Mass, "Gram")]
+    [InlineData("Milliliter", MeasurementUnitCategory.Volume, "Milliliter")]
+    public void ReclassifyUnit_ReturnsTheStoredUnitNameInTheTargetCategory(
+        string storedUnit,
+        MeasurementUnitCategory category,
+        string expectedUnit)
+    {
+        // Act
+        var reclassifiedUnit = MealItemDocumentMapper.ReclassifyUnit(storedUnit, category);
+
+        // Assert
+        reclassifiedUnit.Should().Be(expectedUnit);
+    }
 }

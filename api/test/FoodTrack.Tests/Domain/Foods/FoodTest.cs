@@ -176,6 +176,33 @@ public sealed class FoodTest
         isVisibleToSomeoneElse.Should().BeFalse();
     }
 
+    [Fact]
+    public void MeasuredIn_MovesTheBaseUnit_KeepingEverythingElse()
+    {
+        // Arrange
+        var ownerId = new UserId("owner-uid");
+        var serving = FoodServing.Create(FoodServingId.NewId(), "glass", 200, MeasurementUnit.Gram);
+        var food = Food.Create(
+            FoodId.NewId(),
+            "Orange juice",
+            FoodSource.Custom,
+            externalId: null,
+            new BaseUnit(100, MeasurementUnit.Gram),
+            new Kilocalories(45),
+            new Grams(0.7),
+            new Grams(10.4),
+            new Grams(0.2),
+            [serving],
+            ownerId);
+
+        // Act
+        var measuredInMilliliters = food.MeasuredIn(MeasurementUnit.Milliliter);
+
+        // Assert
+        measuredInMilliliters.BaseUnit.Should().Be(new BaseUnit(100, MeasurementUnit.Milliliter));
+        measuredInMilliliters.Should().BeEquivalentTo(food, options => options.Excluding(candidate => candidate.BaseUnit));
+    }
+
     private static Food CreateValidFood(string name = "Chicken breast") => Food.Create(
         FoodId.NewId(),
         name,

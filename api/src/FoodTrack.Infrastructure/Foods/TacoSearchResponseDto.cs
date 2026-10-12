@@ -18,6 +18,9 @@ public sealed class TacoFoodSummaryDto
 
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("category")]
+    public string? Category { get; set; }
 }
 
 /// <summary>Full record from TACO's foods/{id}.json -- only the 4 core macros are mapped;
@@ -29,6 +32,10 @@ public sealed class TacoFoodDetailDto
 
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>TACO's food group, e.g. "Cereais e derivados" or "Bebidas (alcoólicas e não alcoólicas)".</summary>
+    [JsonPropertyName("category")]
+    public string? Category { get; set; }
 
     [JsonPropertyName("energy_kcal")]
     public double? EnergyKcal { get; set; }

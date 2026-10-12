@@ -53,26 +53,55 @@ public sealed class NutritionCalculatorTest
         result.Calories.Value.Should().Be(260);
     }
 
-    [Fact]
-    public void Calculate_Throws_WhenQuantityUnitCrossesMassAndVolume()
+    [Theory]
+    [InlineData(MeasurementUnit.Gram, MeasurementUnit.Milliliter)]
+    [InlineData(MeasurementUnit.Gram, MeasurementUnit.Liter)]
+    [InlineData(MeasurementUnit.Milliliter, MeasurementUnit.Gram)]
+    [InlineData(MeasurementUnit.Milliliter, MeasurementUnit.Kilogram)]
+    public void Calculate_ThrowsArgumentException_WhenTheUnitMeasuresSomethingElseThanTheFood(
+        MeasurementUnit foodUnit,
+        MeasurementUnit loggedUnit)
     {
         // Arrange
-        var rice = Food.Create(
+        var food = Food.Create(
             FoodId.NewId(),
             "Rice",
-            FoodSource.Usda,
+            FoodSource.Taco,
             "12345",
-            new BaseUnit(100, MeasurementUnit.Gram),
+            new BaseUnit(100, foodUnit),
             new Kilocalories(130),
             new Grams(2.7),
             new Grams(28),
             new Grams(0.3));
 
         // Act
-        var act = () => NutritionCalculator.Calculate(rice, 200, MeasurementUnit.Milliliter);
+        var act = () => NutritionCalculator.Calculate(food, 200, loggedUnit);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>();
+        act.Should().Throw<ArgumentException>().WithMessage("*Rice*");
+    }
+
+    [Fact]
+    public void Calculate_ScalesADrinkByMilliliters_ForACanOfCocaCola()
+    {
+        // Arrange: regular Coca-Cola, 42 kcal and 10.5 g carbs per 100 ml.
+        var cocaCola = Food.Create(
+            FoodId.NewId(),
+            "Coca-Cola",
+            FoodSource.OpenFoodFacts,
+            "7894900011708",
+            new BaseUnit(100, MeasurementUnit.Milliliter),
+            new Kilocalories(42),
+            new Grams(0),
+            new Grams(10.5),
+            new Grams(0));
+
+        // Act
+        var result = NutritionCalculator.Calculate(cocaCola, 350, MeasurementUnit.Milliliter);
+
+        // Assert
+        result.Calories.Value.Should().Be(147);
+        result.Carbs.Value.Should().BeApproximately(36.75, 0.001);
     }
 
     [Fact]

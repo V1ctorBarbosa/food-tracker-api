@@ -1,5 +1,6 @@
 using FluentAssertions;
 using FoodTrack.Application.Foods;
+using FoodTrack.Application.Meals;
 using FoodTrack.Domain.Common;
 using FoodTrack.Domain.Foods;
 using FoodTrack.Domain.Users;
@@ -11,13 +12,14 @@ public sealed class FoodServiceTest
 {
     private readonly IFoodRepository _foodRepository = Substitute.For<IFoodRepository>();
     private readonly IExternalFoodSource _externalFoodSource = Substitute.For<IExternalFoodSource>();
+    private readonly IMealRepository _mealRepository = Substitute.For<IMealRepository>();
     private readonly FoodService _sut;
     private readonly UserId _userId = new("firebase-uid-123");
     private readonly UserId _otherUserId = new("firebase-uid-456");
 
     public FoodServiceTest()
     {
-        _sut = new FoodService(_foodRepository, _externalFoodSource);
+        _sut = new FoodService(_foodRepository, _externalFoodSource, _mealRepository);
     }
 
     [Fact]
@@ -476,6 +478,140 @@ public sealed class FoodServiceTest
         await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task CreateCustomAsync_SavesADrink_PerHundredMilliliters_WhenTheBaseUnitIsMilliliter()
+    {
+        // Arrange
+        var request = new CreateCustomFoodRequest("Suco verde", 45, 0.5, 10, 0.1, "Milliliter");
+
+        // Act
+        var result = await _sut.CreateCustomAsync(_userId, request);
+
+        // Assert
+        result.BaseUnitQuantity.Should().Be(100);
+        result.BaseUnitType.Should().Be(nameof(MeasurementUnit.Milliliter));
+        await _foodRepository.Received(1).SaveAsync(
+            Arg.Is<Food>(food => food.BaseUnit == new BaseUnit(100, MeasurementUnit.Milliliter)),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("Liter")]
+    [InlineData("Kilogram")]
+    [InlineData("cup")]
+    public async Task CreateCustomAsync_Throws_AndSavesNothing_WhenTheBaseUnitIsNotGramOrMilliliter(string baseUnitType)
+    {
+        // Arrange
+        var request = new CreateCustomFoodRequest("Suco verde", 45, 0.5, 10, 0.1, baseUnitType);
+
+        // Act
+        var act = () => _sut.CreateCustomAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_MovesTheLoggedItemsToVolume_BeforeSaving_WhenAFoodBecomesADrink()
+    {
+        // Arrange
+        var food = CreateCustomFood(_userId, "Suco verde");
+        _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
+        var request = new UpdateCustomFoodRequest("Suco verde", 45, 0.5, 10, 0.1, "Milliliter");
+
+        // Act
+        var result = await _sut.UpdateCustomAsync(_userId, food.Id, request);
+
+        // Assert
+        result!.BaseUnitType.Should().Be(nameof(MeasurementUnit.Milliliter));
+        Received.InOrder(() =>
+        {
+            _mealRepository.ReclassifyItemUnitsAsync(food.Id, MeasurementUnitCategory.Volume, Arg.Any<CancellationToken>());
+            _foodRepository.SaveAsync(
+                Arg.Is<Food>(saved => saved.BaseUnit == new BaseUnit(100, MeasurementUnit.Milliliter)),
+                Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_MovesTheLoggedItemsToMass_WhenADrinkBecomesAFood()
+    {
+        // Arrange
+        var drink = CreateCustomFood(_userId, "Iogurte batido", MeasurementUnit.Milliliter);
+        _foodRepository.GetByIdAsync(drink.Id, Arg.Any<CancellationToken>()).Returns(drink);
+        var request = new UpdateCustomFoodRequest("Iogurte batido", 70, 4, 9, 2, "Gram");
+
+        // Act
+        await _sut.UpdateCustomAsync(_userId, drink.Id, request);
+
+        // Assert
+        await _mealRepository.Received(1).ReclassifyItemUnitsAsync(drink.Id, MeasurementUnitCategory.Mass, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_KeepsTheCurrentUnit_AndLeavesLoggedItemsAlone_WhenTheBaseUnitIsLeftOut()
+    {
+        // Arrange
+        var drink = CreateCustomFood(_userId, "Suco verde", MeasurementUnit.Milliliter);
+        _foodRepository.GetByIdAsync(drink.Id, Arg.Any<CancellationToken>()).Returns(drink);
+        var request = new UpdateCustomFoodRequest("Suco verde detox", 40, 0.5, 9, 0.1);
+
+        // Act
+        var result = await _sut.UpdateCustomAsync(_userId, drink.Id, request);
+
+        // Assert
+        result!.BaseUnitType.Should().Be(nameof(MeasurementUnit.Milliliter));
+        await _mealRepository.DidNotReceiveWithAnyArgs().ReclassifyItemUnitsAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_LeavesLoggedItemsAlone_WhenTheBaseUnitDoesNotChange()
+    {
+        // Arrange
+        var food = CreateCustomFood(_userId);
+        _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
+        var request = new UpdateCustomFoodRequest("My whey", 120, 24, 3, 1.5, "Gram");
+
+        // Act
+        await _sut.UpdateCustomAsync(_userId, food.Id, request);
+
+        // Assert
+        await _mealRepository.DidNotReceiveWithAnyArgs().ReclassifyItemUnitsAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_LeavesLoggedItemsAlone_WhenTheFoodBelongsToAnotherUser()
+    {
+        // Arrange
+        var othersFood = CreateCustomFood(_otherUserId);
+        _foodRepository.GetByIdAsync(othersFood.Id, Arg.Any<CancellationToken>()).Returns(othersFood);
+        var request = new UpdateCustomFoodRequest("Mine now", 1, 1, 1, 1, "Milliliter");
+
+        // Act
+        await _sut.UpdateCustomAsync(_userId, othersFood.Id, request);
+
+        // Assert
+        await _mealRepository.DidNotReceiveWithAnyArgs().ReclassifyItemUnitsAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task UpdateCustomAsync_Throws_AndChangesNothing_WhenTheBaseUnitIsNotGramOrMilliliter()
+    {
+        // Arrange
+        var food = CreateCustomFood(_userId);
+        _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
+        var request = new UpdateCustomFoodRequest("My whey", 120, 24, 3, 1.5, "Liter");
+
+        // Act
+        var act = () => _sut.UpdateCustomAsync(_userId, food.Id, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _mealRepository.DidNotReceiveWithAnyArgs().ReclassifyItemUnitsAsync(default, default, default);
+        await _foodRepository.DidNotReceive().SaveAsync(Arg.Any<Food>(), Arg.Any<CancellationToken>());
+    }
+
     private static Food CreateChickenBreast() => Food.Create(
         FoodId.NewId(),
         "Chicken breast",
@@ -487,12 +623,15 @@ public sealed class FoodServiceTest
         new Grams(0),
         new Grams(3.6));
 
-    private static Food CreateCustomFood(UserId ownerId, string name = "My whey") => Food.Create(
+    private static Food CreateCustomFood(
+        UserId ownerId,
+        string name = "My whey",
+        MeasurementUnit baseUnit = MeasurementUnit.Gram) => Food.Create(
         FoodId.NewId(),
         name,
         FoodSource.Custom,
         externalId: null,
-        new BaseUnit(100, MeasurementUnit.Gram),
+        new BaseUnit(100, baseUnit),
         new Kilocalories(120),
         new Grams(24),
         new Grams(3),
