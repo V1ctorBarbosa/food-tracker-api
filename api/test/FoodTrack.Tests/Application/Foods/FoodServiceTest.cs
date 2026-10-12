@@ -37,11 +37,9 @@ public sealed class FoodServiceTest
     }
 
     [Fact]
-    public async Task GetByIdAsync_ReturnsMappedDto_WithServings_WhenFoodExists()
+    public async Task GetByIdAsync_ReturnsMappedDto_WhenFoodExists()
     {
         // Arrange
-        var servingId = FoodServingId.NewId();
-        var serving = FoodServing.Create(servingId, "can", 350, MeasurementUnit.Milliliter);
         var food = Food.Create(
             FoodId.NewId(),
             "Coca-Cola",
@@ -51,8 +49,7 @@ public sealed class FoodServiceTest
             new Kilocalories(42),
             new Grams(0),
             new Grams(10.6),
-            new Grams(0),
-            [serving]);
+            new Grams(0));
 
         _foodRepository.GetByIdAsync(food.Id, Arg.Any<CancellationToken>()).Returns(food);
 
@@ -66,10 +63,6 @@ public sealed class FoodServiceTest
         result.BaseUnitQuantity.Should().Be(100);
         result.BaseUnitType.Should().Be(nameof(MeasurementUnit.Milliliter));
         result.CaloriesPerBaseUnit.Should().Be(42);
-        result.Servings.Should().ContainSingle();
-        result.Servings[0].Id.Should().Be(servingId.Value);
-        result.Servings[0].Name.Should().Be("can");
-        result.Servings[0].Quantity.Should().Be(350);
     }
 
     [Fact]

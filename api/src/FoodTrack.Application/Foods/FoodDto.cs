@@ -9,5 +9,4 @@ public sealed record FoodDto(
     int CaloriesPerBaseUnit,
     double ProteinPerBaseUnit,
     double CarbsPerBaseUnit,
-    double FatPerBaseUnit,
-    IReadOnlyList<FoodServingDto> Servings);
+    double FatPerBaseUnit);

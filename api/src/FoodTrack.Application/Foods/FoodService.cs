@@ -120,7 +120,6 @@ public sealed class FoodService
             new Grams(request.Protein),
             new Grams(request.Carbs),
             new Grams(request.Fat),
-            existingFood.Servings,
             existingFood.OwnerId);
 
         await ReclassifyLoggedItemsIfTheCategoryChangedAsync(existingFood, updatedFood, cancellationToken);
@@ -157,13 +156,25 @@ public sealed class FoodService
     /// </summary>
     private async Task<Food> SaveDeduplicatedAsync(Food food, CancellationToken cancellationToken)
     {
-        var existingFood = food.ExternalId is null
-            ? null
-            : await _foodRepository.GetBySourceAndExternalIdAsync(food.Source, food.ExternalId, cancellationToken);
-
-        var foodToSave = existingFood is null ? food : WithId(food, existingFood.Id);
+        var foodToSave = await ReuseCachedIdAsync(food, cancellationToken);
         await _foodRepository.SaveAsync(foodToSave, cancellationToken);
         return foodToSave;
+    }
+
+    private async Task<Food> ReuseCachedIdAsync(Food food, CancellationToken cancellationToken)
+    {
+        if (food.ExternalId is null)
+        {
+            return food;
+        }
+
+        var existingFood = await _foodRepository.GetBySourceAndExternalIdAsync(food.Source, food.ExternalId, cancellationToken);
+        if (existingFood is null)
+        {
+            return food;
+        }
+
+        return WithId(food, existingFood.Id);
     }
 
     private static Food WithId(Food food, FoodId id) => Food.Create(
@@ -176,7 +187,6 @@ public sealed class FoodService
         food.ProteinPerBaseUnit,
         food.CarbsPerBaseUnit,
         food.FatPerBaseUnit,
-        food.Servings,
         food.OwnerId);
 
     private async Task<IReadOnlyList<Food>> FetchAndCacheExternalFoodsAsync(string query, CancellationToken cancellationToken)
@@ -231,8 +241,5 @@ public sealed class FoodService
         food.CaloriesPerBaseUnit.Value,
         food.ProteinPerBaseUnit.Value,
         food.CarbsPerBaseUnit.Value,
-        food.FatPerBaseUnit.Value,
-        food.Servings
-            .Select(serving => new FoodServingDto(serving.Id.Value, serving.Name, serving.Quantity, serving.Unit.ToString()))
-            .ToList());
+        food.FatPerBaseUnit.Value);
 }

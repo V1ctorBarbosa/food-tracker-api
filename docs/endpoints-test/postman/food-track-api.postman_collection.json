@@ -284,9 +284,9 @@
             "url": { "raw": "{{baseUrl}}/meals", "host": ["{{baseUrl}}"], "path": ["meals"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mealType\": \"Lunch\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 200,\n      \"unit\": \"Gram\",\n      \"foodServingId\": null,\n      \"servingCount\": null\n    }\n  ],\n  \"loggedAt\": \"2026-09-03T19:30:00-03:00\"\n}"
+              "raw": "{\n  \"mealType\": \"Lunch\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 200,\n      \"unit\": \"Gram\"\n    }\n  ],\n  \"loggedAt\": \"2026-09-03T19:30:00-03:00\"\n}"
             },
-            "description": "Each item needs exactly one of two shapes: (quantity + unit) for a raw amount, or (foodServingId + servingCount) to log by a named serving from that food's servings list (e.g. \"1 can\"). unit: Gram|Kilogram for a food, Milliliter|Liter for a drink (the food's baseUnitType says which); the other kind is a 400. mealType: Breakfast|Lunch|Dinner|Snack. Nutrition is computed and snapshotted server-side -- do not send calories/protein/carbs/fat. LoggedAt is set to the current server time and returned in the response; there is no date field on create."
+            "description": "Each item is a quantity and a unit. unit: Gram|Kilogram for a food, Milliliter|Liter for a drink (the food's baseUnitType says which); the other kind is a 400. mealType: Breakfast|Lunch|Dinner|Snack. Nutrition is computed and snapshotted server-side -- do not send calories/protein/carbs/fat. LoggedAt is set to the current server time and returned in the response; there is no date field on create."
           }
         },
         {
@@ -297,7 +297,7 @@
             "url": { "raw": "{{baseUrl}}/meals/:id", "host": ["{{baseUrl}}"], "path": ["meals", ":id"], "variable": [{ "key": "id", "value": "" }] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mealType\": \"Dinner\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": null,\n      \"unit\": null,\n      \"foodServingId\": \"<a serving id from that food>\",\n      \"servingCount\": 1\n    }\n  ]\n}"
+              "raw": "{\n  \"mealType\": \"Dinner\",\n  \"items\": [\n    {\n      \"foodId\": \"<foodId from Get Food by Id>\",\n      \"quantity\": 350,\n      \"unit\": \"Milliliter\"\n    }\n  ]\n}"
             },
             "description": "Full replace, same shape as Create Meal (no date field here either). Items not included here are removed from the meal. LoggedAt is preserved from the original meal, not reset to the edit time."
           }

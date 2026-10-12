@@ -4,7 +4,7 @@ namespace FoodTrack.Domain.Foods;
 
 /// <summary>
 /// The unit nutritional values are reported per (docs section 16), e.g. "165 kcal per 100g".
-/// Always a mass or a volume — never a food-specific serving, and never Kilogram/Liter
+/// Always a mass or a volume — never a household measure, and never Kilogram/Liter
 /// directly, matching how nutritional data sources normalize values (per 100g or 100ml).
 /// </summary>
 public readonly record struct BaseUnit

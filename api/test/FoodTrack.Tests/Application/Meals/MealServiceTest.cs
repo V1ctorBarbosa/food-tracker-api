@@ -46,7 +46,7 @@ public sealed class MealServiceTest
         var threeDaysAgo = DateTimeOffset.UtcNow.AddDays(-3);
         var request = new CreateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)],
+            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram))],
             threeDaysAgo);
 
         // Act
@@ -65,7 +65,7 @@ public sealed class MealServiceTest
         _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
         var request = new CreateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)]);
+            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram))]);
 
         // Act
         var result = await _sut.CreateAsync(_userId, request);
@@ -82,7 +82,7 @@ public sealed class MealServiceTest
         _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
         var request = new CreateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)],
+            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram))],
             DateTimeOffset.UtcNow.AddDays(1));
 
         // Act
@@ -138,7 +138,7 @@ public sealed class MealServiceTest
 
         var request = new CreateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)]);
+            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram))]);
 
         // Act
         var result = await _sut.CreateAsync(_userId, request);
@@ -152,10 +152,9 @@ public sealed class MealServiceTest
     }
 
     [Fact]
-    public async Task CreateAsync_ResolvesItem_FromFoodServing_UsingNutritionCalculator()
+    public async Task CreateAsync_ResolvesADrink_InMilliliters_UsingNutritionCalculator()
     {
-        // Arrange — docs section 17: Coca-Cola at 42 kcal/100ml, 1 can (350ml) -> 147 kcal.
-        var canServing = FoodServing.Create(FoodServingId.NewId(), "can", 350, MeasurementUnit.Milliliter);
+        // Arrange — docs section 19: Coca-Cola at 42 kcal/100ml, a 350ml can -> 147 kcal.
         var cocaCola = Food.Create(
             FoodId.NewId(),
             "Coca-Cola",
@@ -165,14 +164,13 @@ public sealed class MealServiceTest
             new Kilocalories(42),
             new Grams(0),
             new Grams(10.6),
-            new Grams(0),
-            [canServing]);
+            new Grams(0));
 
         _foodRepository.GetByIdAsync(cocaCola.Id, Arg.Any<CancellationToken>()).Returns(cocaCola);
 
         var request = new CreateMealRequest(
             nameof(MealType.Snack),
-            [new MealItemRequest(cocaCola.Id.Value, null, null, canServing.Id.Value, 1)]);
+            [new MealItemRequest(cocaCola.Id.Value, 350, nameof(MeasurementUnit.Milliliter))]);
 
         // Act
         var result = await _sut.CreateAsync(_userId, request);
@@ -190,7 +188,7 @@ public sealed class MealServiceTest
         // Arrange
         var itemRequests = Enumerable
             .Range(0, Meal.MaximumItemCount + 1)
-            .Select(_ => new MealItemRequest(FoodId.NewId().Value, 100, nameof(MeasurementUnit.Gram), null, null))
+            .Select(_ => new MealItemRequest(FoodId.NewId().Value, 100, nameof(MeasurementUnit.Gram)))
             .ToList();
         var request = new CreateMealRequest(nameof(MealType.Lunch), itemRequests);
 
@@ -211,7 +209,7 @@ public sealed class MealServiceTest
         // Arrange
         var request = new CreateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(foodId, 100, nameof(MeasurementUnit.Gram), null, null)]);
+            [new MealItemRequest(foodId, 100, nameof(MeasurementUnit.Gram))]);
 
         // Act
         var act = () => _sut.CreateAsync(_userId, request);
@@ -239,7 +237,7 @@ public sealed class MealServiceTest
         _foodRepository.GetByIdAsync(othersFood.Id, Arg.Any<CancellationToken>()).Returns(othersFood);
         var request = new CreateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(othersFood.Id.Value, 100, nameof(MeasurementUnit.Gram), null, null)]);
+            [new MealItemRequest(othersFood.Id.Value, 100, nameof(MeasurementUnit.Gram))]);
 
         // Act
         var act = () => _sut.CreateAsync(_userId, request);
@@ -258,7 +256,29 @@ public sealed class MealServiceTest
 
         var request = new CreateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(foodId.Value, 200, nameof(MeasurementUnit.Gram), null, null)]);
+            [new MealItemRequest(foodId.Value, 200, nameof(MeasurementUnit.Gram))]);
+
+        // Act
+        var act = async () => await _sut.CreateAsync(_userId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("cup")]
+    public async Task CreateAsync_Throws_AndSavesNothing_WhenTheUnitIsMissingOrUnknown(string? unit)
+    {
+        // Arrange
+        var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
+        _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
+
+        var request = new CreateMealRequest(
+            nameof(MealType.Lunch),
+            [new MealItemRequest(rice.Id.Value, 200, unit!)]);
 
         // Act
         var act = async () => await _sut.CreateAsync(_userId, request);
@@ -269,39 +289,22 @@ public sealed class MealServiceTest
     }
 
     [Fact]
-    public async Task CreateAsync_Throws_WhenNeitherQuantityNorServingIsProvided()
+    public async Task CreateAsync_Throws_AndSavesNothing_WhenTheQuantityIsMissing()
     {
-        // Arrange
+        // Arrange: a client that leaves quantity out sends it as 0.
         var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
         _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
 
         var request = new CreateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(rice.Id.Value, null, null, null, null)]);
+            [new MealItemRequest(rice.Id.Value, 0, nameof(MeasurementUnit.Gram))]);
 
         // Act
         var act = async () => await _sut.CreateAsync(_userId, request);
 
         // Assert
         await act.Should().ThrowAsync<ArgumentException>();
-    }
-
-    [Fact]
-    public async Task CreateAsync_Throws_WhenFoodServingIdDoesNotBelongToFood()
-    {
-        // Arrange
-        var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
-        _foodRepository.GetByIdAsync(rice.Id, Arg.Any<CancellationToken>()).Returns(rice);
-
-        var request = new CreateMealRequest(
-            nameof(MealType.Lunch),
-            [new MealItemRequest(rice.Id.Value, null, null, FoodServingId.NewId().Value, 1)]);
-
-        // Act
-        var act = async () => await _sut.CreateAsync(_userId, request);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        await _mealRepository.DidNotReceive().AddAsync(Arg.Any<Meal>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -314,7 +317,7 @@ public sealed class MealServiceTest
         var rice = CreateFood("Rice", 130, 2.7, 28, 0.3);
         var request = new UpdateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram), null, null)]);
+            [new MealItemRequest(rice.Id.Value, 200, nameof(MeasurementUnit.Gram))]);
 
         // Act
         var result = await _sut.UpdateAsync(_userId, id, request);
@@ -337,7 +340,7 @@ public sealed class MealServiceTest
 
         var request = new UpdateMealRequest(
             nameof(MealType.Dinner),
-            [new MealItemRequest(rice.Id.Value, 100, nameof(MeasurementUnit.Gram), null, null)]);
+            [new MealItemRequest(rice.Id.Value, 100, nameof(MeasurementUnit.Gram))]);
 
         // Act
         var result = await _sut.UpdateAsync(_userId, id, request);
@@ -419,7 +422,7 @@ public sealed class MealServiceTest
         _mealRepository.GetByIdAsync(existingMeal.Id, _userId, Arg.Any<CancellationToken>()).Returns(existingMeal);
         var request = new UpdateMealRequest(
             nameof(MealType.Lunch),
-            [new MealItemRequest(cocaCola.Id.Value, 350, nameof(MeasurementUnit.Gram), null, null)]);
+            [new MealItemRequest(cocaCola.Id.Value, 350, nameof(MeasurementUnit.Gram))]);
 
         // Act
         var act = () => _sut.UpdateAsync(_userId, existingMeal.Id, request);

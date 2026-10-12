@@ -5,13 +5,12 @@ using FoodTrack.Domain.Users;
 namespace FoodTrack.Infrastructure.Foods;
 
 /// <summary>
-/// Pure mapping between the domain's <see cref="Food"/> aggregate (including its servings)
-/// and its Firestore persistence representation. Kept free of any Firestore I/O so it can
-/// be unit tested without a live database.
+/// Pure mapping between the domain's <see cref="Food"/> aggregate and its Firestore persistence
+/// representation. Kept free of any Firestore I/O so it can be unit tested without a live database.
 /// </summary>
 internal static class FoodDocumentMapper
 {
-    public static Food ToDomain(FoodId id, FoodDocument document, IReadOnlyList<FoodServing> servings) => Food.Create(
+    public static Food ToDomain(FoodId id, FoodDocument document) => Food.Create(
         id,
         document.Name,
         Enum.Parse<FoodSource>(document.Source),
@@ -21,8 +20,7 @@ internal static class FoodDocumentMapper
         new Grams(document.ProteinPerBaseUnit),
         new Grams(document.CarbsPerBaseUnit),
         new Grams(document.FatPerBaseUnit),
-        servings,
-        document.OwnerId is null ? null : new UserId(document.OwnerId));
+        ToOwnerId(document.OwnerId));
 
     public static FoodDocument ToDocument(Food food) => new()
     {
@@ -38,4 +36,14 @@ internal static class FoodDocumentMapper
         CarbsPerBaseUnit = food.CarbsPerBaseUnit.Value,
         FatPerBaseUnit = food.FatPerBaseUnit.Value,
     };
+
+    private static UserId? ToOwnerId(string? ownerId)
+    {
+        if (ownerId is null)
+        {
+            return null;
+        }
+
+        return new UserId(ownerId);
+    }
 }
